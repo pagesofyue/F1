@@ -1,0 +1,191 @@
+/* =========================================================================
+   SHARED UTILITIES
+   ========================================================================= */
+
+const Utils = (() => {
+
+  /* ---------- CSV fetching ---------- */
+
+  async function fetchCSV(url) {
+    if (!url) return null;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Failed to load sheet (${res.status})`);
+    const text = await res.text();
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+    return parsed.data;
+  }
+
+  /* Loads a tab's data, falling back to placeholder rows if no URL is set
+     in CONFIG, or if the fetch fails for any reason. */
+  async function loadTab(tabKey, placeholderRows) {
+    const url = CONFIG.SHEET_URLS[tabKey];
+    if (!url) return { rows: placeholderRows, isPlaceholder: true };
+    try {
+      const rows = await fetchCSV(url);
+      if (!rows || rows.length === 0) return { rows: placeholderRows, isPlaceholder: true };
+      return { rows, isPlaceholder: false };
+    } catch (err) {
+      console.warn(`Could not load "${tabKey}" tab, using placeholder data.`, err);
+      return { rows: placeholderRows, isPlaceholder: true };
+    }
+  }
+
+  /* ---------- text helpers ---------- */
+
+  function slugify(str) {
+    return String(str || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+
+  function initials(name) {
+    return String(name || "?")
+      .split(" ")
+      .filter(Boolean)
+      .map(w => w[0])
+      .join("")
+      .slice(0, 3)
+      .toUpperCase();
+  }
+
+  function formatDateRange(startStr, endStr) {
+    const opts = { month: "short", day: "numeric" };
+    const start = startStr ? new Date(startStr + "T00:00:00") : null;
+    const end = endStr ? new Date(endStr + "T00:00:00") : null;
+    if (!start && !end) return "TBC";
+    if (start && end) {
+      const sameMonth = start.getMonth() === end.getMonth();
+      const startFmt = start.toLocaleDateString("en-US", sameMonth ? { day: "numeric" } : opts);
+      const endFmt = end.toLocaleDateString("en-US", { ...opts, year: "numeric" });
+      return `${startFmt}–${endFmt}`;
+    }
+    return (start || end).toLocaleDateString("en-US", { ...opts, year: "numeric" });
+  }
+
+  function teamColor(teamName) {
+    return CONFIG.TEAM_COLORS[teamName] || "#8A8F94";
+  }
+
+  function groupBy(rows, key) {
+    return rows.reduce((acc, row) => {
+      const k = row[key];
+      (acc[k] = acc[k] || []).push(row);
+      return acc;
+    }, {});
+  }
+
+  /* ---------- placeholder image (SVG data URI, no network needed) ---------- */
+
+  function placeholderImage(label, { w = 400, h = 400, bg = "#ECEAE4", fg = "#9A9E92" } = {}) {
+    const text = initials(label);
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <rect width="${w}" height="${h}" fill="${bg}"/>
+        <text x="50%" y="50%" font-family="monospace" font-size="${Math.round(h * 0.22)}"
+              fill="${fg}" text-anchor="middle" dominant-baseline="central" letter-spacing="2">${text}</text>
+      </svg>`.trim();
+    return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+  }
+
+  /* ---------- local upload overrides ----------
+     Lets the user click an image and drop in their own file as an instant
+     preview. Stored only in this browser via localStorage (as a data URL),
+     so it's for previewing layout/sizing — it will NOT appear for other
+     visitors until the image is hosted online and its URL added to the
+     Sheet. Each image slot has a stable key so overrides persist on reload.
+  */
+
+  const LS_PREFIX = "f1site:img:";
+
+  function getOverride(key) {
+    try { return localStorage.getItem(LS_PREFIX + key); } catch { return null; }
+  }
+
+  function setOverride(key, dataUrl) {
+    try { localStorage.setItem(LS_PREFIX + key, dataUrl); } catch (e) {
+      alert("Couldn't save this preview locally — the image may be too large for browser storage. Try a smaller file, or host it online instead.");
+    }
+  }
+
+  function clearOverride(key) {
+    try { localStorage.removeItem(LS_PREFIX + key); } catch {}
+  }
+
+  /* Resolves the final image src for a slot: local override > sheet URL > placeholder */
+  function resolveImageSrc(key, sheetUrl, placeholderLabel, placeholderOpts) {
+    const override = getOverride(key);
+    if (override) return override;
+    if (sheetUrl && sheetUrl.trim()) return sheetUrl.trim();
+    return placeholderImage(placeholderLabel, placeholderOpts);
+  }
+
+  /* Attaches a small "upload" affordance over an <img> wrapped in a
+     .img-slot container. Call this after inserting the image into the DOM. */
+  function attachUploader(containerEl, key, onChange) {
+    const btn = document.createElement("label");
+    btn.className = "img-slot__upload";
+    btn.title = "Preview your own image (saved in this browser only)";
+    btn.innerHTML = `
+      <input type="file" accept="image/*" hidden />
+      <span>⤒ Upload</span>
+    `;
+    const input = btn.querySelector("input");
+    input.addEventListener("change", () => {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 3_500_000) {
+        alert("That image is a bit large for a local preview. Try one under ~3MB, or host it online for the real site.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setOverride(key, reader.result);
+        onChange && onChange(reader.result);
+      };
+      reader.readAsDataURL(file);
+    });
+    containerEl.appendChild(btn);
+
+    if (getOverride(key)) {
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "img-slot__clear";
+      clear.title = "Remove local preview";
+      clear.textContent = "✕";
+      clear.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        clearOverride(key);
+        onChange && onChange(null);
+      });
+      containerEl.appendChild(clear);
+    }
+  }
+
+  /* Builds a self-contained image slot: <figure class="img-slot"><img/></figure>
+     with upload affordance wired up. Returns the figure element. */
+  function buildImageSlot({ key, sheetUrl, label, alt, opts, className }) {
+    const figure = document.createElement("figure");
+    figure.className = "img-slot" + (className ? " " + className : "");
+
+    const img = document.createElement("img");
+    img.alt = alt || label || "";
+    img.loading = "lazy";
+    img.src = resolveImageSrc(key, sheetUrl, label, opts);
+    figure.appendChild(img);
+
+    attachUploader(figure, key, (newSrc) => {
+      img.src = newSrc || resolveImageSrc(key, sheetUrl, label, opts);
+    });
+
+    return figure;
+  }
+
+  return {
+    fetchCSV, loadTab, slugify, initials, formatDateRange, teamColor, groupBy,
+    placeholderImage, getOverride, setOverride, clearOverride,
+    resolveImageSrc, attachUploader, buildImageSlot,
+  };
+})();

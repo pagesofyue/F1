@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Team — Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="topbar__mark" href="index.html">GRID <span id="season-tag">2026</span></a>
+    <div class="topbar__season">Team Profile</div>
+  </div>
+</header>
+
+<section class="team-header">
+  <div class="wrap">
+    <h1 id="team-name" style="margin-top:32px">Loading…</h1>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Drivers</h2>
+      <span class="section__note">2026 season lineup</span>
+    </div>
+    <div class="driver-grid" id="driver-grid"></div>
+  </div>
+</section>
+
+<div class="wrap">
+  <a class="back-link" href="index.html">← Back to all teams</a>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">Data synced from Google Sheets.</div>
+</footer>
+
+<script src="js/vendor/papaparse.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/placeholder-data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/team.js"></script>
+</body>
+</html>

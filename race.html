@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Race — Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="topbar__mark" href="index.html">GRID <span id="season-tag">2026</span></a>
+    <div class="topbar__season">Race Weekend</div>
+  </div>
+</header>
+
+<section class="race-header">
+  <div class="wrap">
+    <div class="race-header__meta" id="race-meta">ROUND —</div>
+    <h1 id="race-name">Loading…</h1>
+    <div class="race-header__facts">
+      <div><b id="race-country">—</b></div>
+      <div>Circuit: <b id="race-circuit">—</b></div>
+      <div>Dates: <b id="race-dates">—</b></div>
+      <div>Status: <b id="race-status">—</b></div>
+    </div>
+    <div id="circuit-map-wrap"></div>
+  </div>
+  <div class="wrap">
+    <div class="session-tabs" id="session-tabs"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <span class="section__note" id="results-note"></span>
+    <table class="results-table" id="results-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>Driver</th>
+          <th>Team</th>
+          <th style="text-align:right">Pts</th>
+        </tr>
+      </thead>
+      <tbody id="results-body"></tbody>
+    </table>
+    <div class="empty-state" id="results-empty" style="display:none"></div>
+  </div>
+</section>
+
+<section class="section" id="highlights-section" style="display:none">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Highlights</h2>
+      <span class="section__note">Pole, winner &amp; session graphics</span>
+    </div>
+    <div class="highlight-grid" id="highlight-grid"></div>
+  </div>
+</section>
+
+<section class="section" id="posters-section">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Race Posters</h2>
+      <span class="section__note" id="posters-note">Ferrari, Red Bull &amp; Racing Bulls featured</span>
+    </div>
+    <div class="poster-wall" id="poster-wall"></div>
+  </div>
+</section>
+
+<section class="section" id="notes-section" style="display:none">
+  <div class="wrap">
+    <div class="section__head"><h2>Race Notes</h2></div>
+    <div class="notes-block" id="notes-block"></div>
+  </div>
+</section>
+
+<div class="wrap">
+  <a class="back-link" href="index.html">← Back to calendar</a>
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">Data synced from Google Sheets.</div>
+</footer>
+
+<script src="js/vendor/papaparse.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/placeholder-data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/race.js"></script>
+</body>
+</html>

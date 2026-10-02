@@ -1,0 +1,796 @@
+/* =========================================================================
+   DESIGN TOKENS
+   ========================================================================= */
+:root {
+  --bg: #F6F5F2;
+  --surface: #FFFFFF;
+  --surface-2: #ECEAE4;
+  --line: #DEDBD3;
+  --text: #17181A;
+  --text-dim: #5C6066;
+  --text-faint: #8D9096;
+  --accent: #E10600;
+  --accent-dim: #FBD6D3;
+  --radius: 3px;
+
+  --font-display: "Big Shoulders", "Arial Narrow", sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+button { font-family: inherit; cursor: pointer; }
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+::selection { background: var(--accent); color: #fff; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* =========================================================================
+   TOP BAR
+   ========================================================================= */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(246, 245, 242, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.topbar__mark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.topbar__mark span {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  padding: 2px 6px;
+  border-radius: var(--radius);
+}
+
+.topbar__season {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* =========================================================================
+   HERO
+   ========================================================================= */
+.hero {
+  padding: 64px 0 40px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  margin: 0 0 10px;
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(40px, 7vw, 84px);
+  line-height: 0.95;
+  margin: 0 0 16px;
+  letter-spacing: -0.5px;
+}
+
+.hero p {
+  color: var(--text-dim);
+  max-width: 52ch;
+  font-size: 17px;
+  margin: 0;
+}
+
+/* =========================================================================
+   SECTION HEADINGS
+   ========================================================================= */
+.section { padding: 56px 0; }
+.section + .section { border-top: 1px solid var(--line); }
+
+.section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.section__head h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 34px;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.section__note {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.data-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #8A6210;
+  background: #FBF3E1;
+  border: 1px solid #EBD9AE;
+  padding: 4px 9px;
+  border-radius: var(--radius);
+}
+
+/* =========================================================================
+   RACE CALENDAR (homepage)
+   ========================================================================= */
+.race-list {
+  border-top: 1px solid var(--line);
+}
+
+.race-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto 20px;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 4px;
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+
+.race-row:hover { background: var(--surface); }
+
+.race-row__round {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.race-row__name-wrap { min-width: 0; }
+
+.race-row__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.race-row__country {
+  color: var(--text-dim);
+  font-size: 13.5px;
+  margin-top: 2px;
+}
+
+.race-row__dates {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.race-row__status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+}
+.race-row__status[data-status="upcoming" i] { color: #1D5FC4; border-color: #C3D7F5; background: #EDF3FD; }
+.race-row__status[data-status="completed" i] { color: #1E7A42; border-color: #C3E6D0; background: #ECF8F0; }
+.race-row__status[data-status="live" i] { color: var(--accent); border-color: #F5C6C2; background: #FDEDEC; }
+
+.race-row__arrow {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 640px) {
+  .race-row {
+    grid-template-columns: 40px 1fr 20px;
+    row-gap: 4px;
+  }
+  .race-row__dates, .race-row__status { grid-column: 2; }
+}
+
+/* =========================================================================
+   TEAMS GRID (homepage)
+   ========================================================================= */
+.teams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 2px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.team-card {
+  background: var(--surface);
+  padding: 22px;
+  --tc: #8A8F94;
+}
+
+.team-card__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  margin: 0 0 4px;
+  border-left: 4px solid var(--tc);
+  padding-left: 10px;
+}
+
+.team-card__link {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: 0 0 16px 14px;
+}
+
+.team-card__drivers {
+  display: flex;
+  gap: 12px;
+  padding-left: 14px;
+}
+
+.driver-chip {
+  display: block;
+  width: 84px;
+}
+
+.driver-chip .img-slot {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.driver-chip .img-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.driver-chip__name {
+  font-size: 12px;
+  margin-top: 6px;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.driver-chip__no {
+  font-family: var(--font-mono);
+  color: var(--tc);
+  font-size: 11px;
+}
+
+.team-card__link:hover ~ .team-card__drivers,
+.team-card:hover .team-card__name { color: var(--tc); }
+
+/* =========================================================================
+   IMAGE SLOT + UPLOAD AFFORDANCE
+   ========================================================================= */
+.img-slot {
+  position: relative;
+  margin: 0;
+  background: var(--surface-2);
+}
+
+.img-slot__upload {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: rgba(17, 18, 20, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #F0EFEC;
+  padding: 4px 7px;
+  border-radius: var(--radius);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.img-slot:hover .img-slot__upload,
+.img-slot:focus-within .img-slot__upload {
+  opacity: 1;
+}
+
+.img-slot__clear {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(17, 18, 20, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #F0EFEC;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================================================================
+   POSTER WALL
+   ========================================================================= */
+.poster-wall {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 110px;
+  gap: 10px;
+}
+
+.poster-slot {
+  border-radius: var(--radius);
+  overflow: hidden;
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.poster-slot.is-featured {
+  grid-column: span 3;
+  grid-row: span 3;
+}
+
+.poster-slot .img-slot,
+.poster-slot .img-slot img {
+  width: 100%;
+  height: 100%;
+}
+.poster-slot .img-slot img { object-fit: cover; }
+
+.poster-slot__label {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #F5F4F1;
+  background: rgba(17, 18, 20, 0.72);
+  padding: 3px 7px;
+  border-radius: var(--radius);
+  z-index: 2;
+}
+
+@media (max-width: 900px) {
+  .poster-wall { grid-template-columns: repeat(4, 1fr); }
+  .poster-slot.is-featured { grid-column: span 4; grid-row: span 3; }
+  .poster-slot { grid-column: span 2; }
+}
+@media (max-width: 560px) {
+  .poster-wall { grid-template-columns: repeat(2, 1fr); }
+  .poster-slot, .poster-slot.is-featured { grid-column: span 2; }
+}
+
+/* =========================================================================
+   CIRCUIT MAP
+   ========================================================================= */
+.circuit-map {
+  margin: 20px 0 0;
+  max-width: 420px;
+}
+.circuit-map .img-slot {
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.circuit-map .img-slot img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.circuit-map__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 6px;
+}
+
+/* =========================================================================
+   HIGHLIGHTS GRID
+   ========================================================================= */
+.highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.highlight-tile { position: relative; border-radius: var(--radius); overflow: hidden; }
+.highlight-tile .img-slot { aspect-ratio: 4 / 5; }
+.highlight-tile .img-slot img { width: 100%; height: 100%; object-fit: cover; }
+.highlight-tile__label {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #F5F4F1;
+  background: rgba(17, 18, 20, 0.72);
+  padding: 3px 7px;
+  border-radius: var(--radius);
+  z-index: 2;
+}
+
+/* =========================================================================
+   RACE NOTES
+   ========================================================================= */
+.notes-block {
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  max-width: 68ch;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+}
+
+/* =========================================================================
+   BREADCRUMB / BACK LINK
+   ========================================================================= */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 28px 0 0;
+}
+.back-link:hover { color: var(--accent); }
+
+/* =========================================================================
+   RACE DETAIL PAGE
+   ========================================================================= */
+.race-header {
+  padding: 40px 0 32px;
+  border-bottom: 1px solid var(--line);
+}
+
+.race-header__meta {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.race-header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(34px, 6vw, 60px);
+  margin: 0 0 14px;
+  letter-spacing: -0.5px;
+}
+
+.race-header__facts {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  color: var(--text-dim);
+  font-size: 14.5px;
+}
+.race-header__facts b { color: var(--text); font-weight: 600; }
+
+.session-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 24px 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.session-tab {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.session-tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.session-tab:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 24px;
+  font-size: 14.5px;
+}
+
+.results-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--text-faint);
+  font-weight: 400;
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.results-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.results-table tbody tr:hover { background: var(--surface); }
+
+.results-table td.pos {
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  width: 40px;
+}
+
+.results-table td.driver {
+  font-weight: 600;
+}
+
+.results-table td.team {
+  color: var(--text-dim);
+}
+
+.results-table td.time,
+.results-table td.points {
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--text-dim);
+}
+
+.team-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.empty-state {
+  padding: 40px 12px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* =========================================================================
+   TEAM DETAIL PAGE
+   ========================================================================= */
+.team-header {
+  padding: 0 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.team-header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(36px, 6vw, 64px);
+  margin: 0 0 24px;
+  letter-spacing: -0.5px;
+  border-left: 6px solid var(--tc, var(--accent));
+  padding-left: 18px;
+}
+
+.driver-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 2px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin: 32px 0;
+}
+
+.driver-card {
+  background: var(--surface);
+  padding: 24px;
+}
+
+.driver-card .img-slot {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.driver-card .img-slot img { width: 100%; height: 100%; object-fit: cover; }
+
+.driver-card__no {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--tc, var(--accent));
+}
+
+.driver-card__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+  margin: 2px 0 6px;
+}
+
+.driver-card__status {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* =========================================================================
+   ADMIN PANEL
+   ========================================================================= */
+.btn {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+.btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn--danger { color: var(--accent); }
+.btn--ghost { background: none; }
+.btn--small { padding: 6px 10px; font-size: 11.5px; margin-right: 6px; }
+
+.admin-form {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+.admin-form--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  align-items: end;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 20px;
+  border-radius: var(--radius);
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.admin-input {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+  width: 100%;
+}
+.admin-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.admin-textarea { resize: vertical; font-family: var(--font-body); min-width: 220px; }
+
+.admin-error {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.admin-tab {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  color: var(--text-dim);
+  border-bottom: 2px solid transparent;
+}
+.admin-tab.is-active { color: var(--text); border-bottom-color: var(--accent); }
+
+.admin-toast {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #1E7A42;
+  background: #ECF8F0;
+  border: 1px solid #C3E6D0;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.admin-toast--error { color: var(--accent); background: #FDEDEC; border-color: #F5C6C2; }
+
+.admin-subhead {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 36px 0 0;
+}
+
+.admin-table { font-size: 13px; }
+.admin-table th { white-space: nowrap; }
+.admin-table td { padding: 8px; }
+
+@media (max-width: 640px) {
+  #admin-table-wrap { overflow-x: auto; }
+  .admin-table { min-width: 720px; }
+}
+
+/* =========================================================================
+   FOOTER
+   ========================================================================= */
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 32px 0 48px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

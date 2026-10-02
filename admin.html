@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Admin — Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="topbar__mark" href="index.html">GRID <span id="season-tag">2026</span></a>
+    <div class="topbar__season">Admin</div>
+  </div>
+</header>
+
+<!-- Shown when ADMIN.APPS_SCRIPT_URL is not yet set -->
+<section class="section" id="setup-needed" style="display:none">
+  <div class="wrap">
+    <div class="section__head"><h2>One-time setup needed</h2></div>
+    <p style="max-width:62ch;color:var(--text-dim)">
+      The admin panel talks to your spreadsheet through a small Google Apps Script "Web app".
+      It isn't connected yet. Open <code>apps-script/Code.gs</code> and
+      <b>README.md section 5</b> for the full walkthrough, then paste the resulting URL into
+      <code>ADMIN.APPS_SCRIPT_URL</code> in <code>js/config.js</code>.
+    </p>
+  </div>
+</section>
+
+<!-- Password gate -->
+<section class="section" id="gate">
+  <div class="wrap" style="max-width:420px">
+    <div class="section__head"><h2>Enter password</h2></div>
+    <p style="color:var(--text-dim);font-size:14px;margin-top:-16px">
+      Checked against the password set in your Apps Script, not stored anywhere in this site's code.
+    </p>
+    <form id="gate-form" class="admin-form">
+      <input type="password" id="gate-password" placeholder="Admin password" autocomplete="current-password" required />
+      <button type="submit" class="btn btn--primary">Unlock</button>
+    </form>
+    <p id="gate-error" class="admin-error" style="display:none"></p>
+  </div>
+</section>
+
+<!-- Main panel (shown after unlocking) -->
+<section class="section" id="panel" style="display:none">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Edit data</h2>
+      <button type="button" class="btn btn--ghost" id="signout-btn">Sign out</button>
+    </div>
+
+    <div class="admin-tabs" id="admin-tabs">
+      <button class="admin-tab is-active" data-tab="teams">Teams</button>
+      <button class="admin-tab" data-tab="races">Races</button>
+      <button class="admin-tab" data-tab="results">Results</button>
+      <button class="admin-tab" data-tab="posters">Posters</button>
+      <button class="admin-tab" data-tab="highlights">Highlights</button>
+      <button class="admin-tab" data-tab="notes">Notes</button>
+      <button class="admin-tab" data-tab="circuits">Circuits</button>
+    </div>
+
+    <p id="admin-toast" class="admin-toast" style="display:none"></p>
+
+    <div id="admin-table-wrap">
+      <div class="empty-state">Loading…</div>
+    </div>
+
+    <h3 class="admin-subhead">Add new row</h3>
+    <form id="admin-add-form" class="admin-form admin-form--grid"></form>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">Reads are live from your Sheet; writes require the Apps Script password.</div>
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

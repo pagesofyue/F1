@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2026 Season — Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="topbar__mark">GRID <span id="season-tag">2026</span></div>
+    <div class="topbar__season">Season Overview</div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="hero__eyebrow">// 2026 SEASON</p>
+    <h1>The full<br>calendar.</h1>
+    <p>Every round, every team, every result — pulled straight from the season sheet.</p>
+  </div>
+</section>
+
+<section class="section" id="races-section">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Race Calendar</h2>
+      <span class="section__note" id="races-note"></span>
+    </div>
+    <div class="race-list" id="race-list">
+      <div class="empty-state">Loading calendar…</div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="teams-section">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Teams</h2>
+      <span class="section__note">Click a driver to open their team page</span>
+    </div>
+    <div class="teams-grid" id="teams-grid">
+      <div class="empty-state">Loading teams…</div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">Data synced from Google Sheets. Hover any image to preview your own.</div>
+</footer>
+
+<script src="js/vendor/papaparse.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/placeholder-data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/home.js"></script>
+</body>
+</html>
