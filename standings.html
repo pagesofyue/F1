@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Standings — Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="topbar__mark" href="index.html">GRID <span id="season-tag">2026</span></a>
+    <nav class="topbar__nav">
+      <a href="index.html">Calendar</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" style="padding:48px 0 32px">
+  <div class="wrap">
+    <p class="hero__eyebrow">// AUTO-COMPUTED</p>
+    <h1 style="font-size:clamp(32px,6vw,56px)">Championship<br>standings.</h1>
+    <p>Totalled live from every scored session in your Results tab — add a result, this updates itself.</p>
+    <p><a id="standings-doc-link" href="#" target="_blank" rel="noopener" style="display:none">Open the standings in Google Docs ↗</a></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section__head">
+      <h2>Drivers</h2>
+      <span class="section__note" id="drivers-note"></span>
+    </div>
+    <table class="results-table" id="drivers-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>Driver</th>
+          <th>Team</th>
+          <th style="text-align:right">Points</th>
+        </tr>
+      </thead>
+      <tbody id="drivers-body"></tbody>
+    </table>
+    <div class="empty-state" id="drivers-empty" style="display:none"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section__head"><h2>Constructors</h2></div>
+    <table class="results-table" id="teams-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Pos</th>
+          <th>Team</th>
+          <th style="text-align:right">Points</th>
+        </tr>
+      </thead>
+      <tbody id="teams-body"></tbody>
+    </table>
+    <div class="empty-state" id="teams-empty" style="display:none"></div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">Totals are a sum of every non-blank Points value in your Results tab for the current season.</div>
+</footer>
+
+<script src="js/vendor/papaparse.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/placeholder-data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/standings.js"></script>
+</body>
+</html>

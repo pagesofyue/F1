@@ -30,6 +30,21 @@ const Utils = (() => {
     }
   }
 
+  /* Reads from the Google Docs bridge in apps-script/Code.gs.
+     kind = "notes" | "links". Returns null if the script isn't connected. */
+  async function fetchDoc(kind) {
+    const base = CONFIG.ADMIN && CONFIG.ADMIN.APPS_SCRIPT_URL;
+    if (!base) return null;
+    try {
+      const res = await fetch(`${base}?doc=${kind}`, { cache: "no-store" });
+      const json = await res.json();
+      return json.ok ? json : null;
+    } catch (err) {
+      console.warn(`Could not load "${kind}" doc.`, err);
+      return null;
+    }
+  }
+
   /* ---------- text helpers ---------- */
 
   function slugify(str) {
@@ -184,7 +199,7 @@ const Utils = (() => {
   }
 
   return {
-    fetchCSV, loadTab, slugify, initials, formatDateRange, teamColor, groupBy,
+    fetchCSV, loadTab, fetchDoc, slugify, initials, formatDateRange, teamColor, groupBy,
     placeholderImage, getOverride, setOverride, clearOverride,
     resolveImageSrc, attachUploader, buildImageSlot,
   };

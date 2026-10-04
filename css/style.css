@@ -95,6 +95,16 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text-dim);
 }
 
+.topbar__nav a {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.topbar__nav a:hover { color: var(--accent); border-color: var(--accent-dim); }
+
 /* =========================================================================
    HERO
    ========================================================================= */
@@ -372,23 +382,33 @@ button { font-family: inherit; cursor: pointer; }
    POSTER WALL
    ========================================================================= */
 .poster-wall {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Featured row: Ferrari / Red Bull / Racing Bulls — 3 equal, larger tiles */
+.poster-row--featured {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: 110px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Everyone else — uniform, smaller tiles, 4 per row */
+.poster-row--rest {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
 .poster-slot {
+  position: relative;
   border-radius: var(--radius);
   overflow: hidden;
-  grid-column: span 2;
-  grid-row: span 2;
 }
 
-.poster-slot.is-featured {
-  grid-column: span 3;
-  grid-row: span 3;
-}
+.poster-row--featured .poster-slot .img-slot { aspect-ratio: 3 / 4; }
+.poster-row--rest .poster-slot .img-slot { aspect-ratio: 3 / 4; }
 
 .poster-slot .img-slot,
 .poster-slot .img-slot img {
@@ -410,14 +430,13 @@ button { font-family: inherit; cursor: pointer; }
   z-index: 2;
 }
 
-@media (max-width: 900px) {
-  .poster-wall { grid-template-columns: repeat(4, 1fr); }
-  .poster-slot.is-featured { grid-column: span 4; grid-row: span 3; }
-  .poster-slot { grid-column: span 2; }
+@media (max-width: 720px) {
+  .poster-row--featured { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .poster-row--rest { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 560px) {
-  .poster-wall { grid-template-columns: repeat(2, 1fr); }
-  .poster-slot, .poster-slot.is-featured { grid-column: span 2; }
+@media (max-width: 440px) {
+  .poster-row--featured { grid-template-columns: repeat(1, 1fr); }
+  .poster-row--rest { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* =========================================================================
@@ -469,16 +488,28 @@ button { font-family: inherit; cursor: pointer; }
    RACE NOTES
    ========================================================================= */
 .notes-block {
-  white-space: pre-wrap;
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--text);
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
   max-width: 68ch;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 20px 24px;
 }
+.notes-image { margin: 0; flex: 0 0 200px; }
+.notes-image .img-slot { border-radius: var(--radius); overflow: hidden; aspect-ratio: 4/3; }
+.notes-image .img-slot img { width: 100%; height: 100%; object-fit: cover; }
+.notes-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  margin: 0;
+  flex: 1 1 260px;
+}
+.notes-text p { margin: 0 0 12px; }
+.notes-text p:last-child { margin-bottom: 0; }
+.notes-text ul { margin: 0 0 12px; padding-left: 20px; }
 
 /* =========================================================================
    BREADCRUMB / BACK LINK
@@ -793,4 +824,68 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text-faint);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+/* =========================================================================
+   PDF EXPORT (race page) — hidden on screen, the only thing shown in print
+   ========================================================================= */
+.print-sheet { display: none; }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body > *:not(.print-sheet) { display: none !important; }
+  html, body { background: #fff !important; }
+
+  .print-sheet {
+    display: block;
+    font-family: "Special Elite", "Courier New", monospace;
+    color: #151515;
+    font-size: 9.5pt;
+    line-height: 1.35;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-sheet h1 { font-size: 26pt; line-height: 1.05; margin: 2mm 0 3mm; font-weight: 400; }
+  .print-sheet h2 {
+    font-size: 12pt; font-weight: 400; text-transform: uppercase; letter-spacing: .08em;
+    margin: 0 0 2.5mm; padding-bottom: 1mm; border-bottom: 1.5px solid #151515;
+  }
+  .print-sheet p { margin: 0 0 2mm; }
+
+  .ps-head { display: flex; justify-content: space-between; gap: 8mm; align-items: flex-end;
+             padding-bottom: 5mm; margin-bottom: 6mm; border-bottom: 3px double #151515; }
+  .ps-kicker { font-size: 9pt; letter-spacing: .12em; color: #E10600; }
+  .ps-map { margin: 0; width: 70mm; flex: none; }
+  .ps-map img { width: 100%; height: 44mm; object-fit: contain; border: 0; background: none; }
+
+  .ps-block { margin-bottom: 7mm; break-inside: avoid; page-break-inside: avoid; }
+  .ps-cols { display: grid; gap: 5mm; }
+  .ps-cols--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ps-cols--2 { grid-template-columns: 62mm minmax(0, 1fr); align-items: start; }
+  .ps-cols--3 .ps-col h2 { font-size: 10.5pt; }
+
+  .ps-graphic { margin: 0 0 3mm; }
+  .ps-graphic img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; border: 1px solid #151515; }
+  .ps-graphic figcaption { font-size: 8.5pt; margin-top: 1.5mm; }
+  .ps-graphic figcaption span { text-transform: uppercase; letter-spacing: .08em; color: #E10600; margin-right: 2mm; }
+
+  .ps-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  .ps-table th { text-align: left; font-weight: 400; text-transform: uppercase; font-size: 7.5pt;
+                 letter-spacing: .08em; border-bottom: 1px solid #151515; padding: 0 1mm 1mm; }
+  .ps-table td { padding: .9mm 1mm; border-bottom: 1px dotted #9a9a9a; }
+  .ps-table .r { text-align: right; }
+  .ps-table td i { display: inline-block; width: 2.2mm; height: 2.2mm; border-radius: 50%; margin-right: 1.5mm; }
+  .ps-cols--3 .ps-table { font-size: 7.5pt; }
+
+  .ps-notes p { max-width: 150mm; }
+  .ps-li { padding-left: 3mm; }
+  .ps-note-img { max-width: 70mm; max-height: 55mm; border: 1px solid #151515; margin: 0 0 3mm; display: block; }
+
+  .ps-posters__row { display: grid; gap: 3mm; margin-bottom: 3mm; }
+  .ps-posters__row--featured { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ps-posters__row--rest { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ps-poster { margin: 0; position: relative; break-inside: avoid; }
+  .ps-poster img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; border: 1px solid #151515; }
+  .ps-poster figcaption { position: absolute; left: 1.5mm; bottom: 1.5mm; background: rgba(17,18,20,.78);
+                          color: #F5F4F1; font-size: 7pt; padding: .5mm 1.5mm; }
 }

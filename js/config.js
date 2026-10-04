@@ -22,41 +22,39 @@ const CONFIG = {
 
   SHEET_URLS: {
     // Your existing Teams/Drivers tab (already connected)
-    teams: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQInAerSeHeqMzlsoPc6UtDjCw0MLjWG9x9UPY2yADFOZmVnlsxalcooDZe5nTv3GgVNzoWuWtYFeTb/pub?output=csv",
+    teams: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTJjWTxKY3fXIMaw9N27zluzLNFza8NvLd7b0GuizpaEoyFncyeLz1df2bGkWk9aHfyihr0Y4zd_oeS/pub?gid=0&single=true&output=csv",
 
     // Add a "Races" tab to the same spreadsheet, publish it, paste its link here.
     // Leave as null to keep using placeholder race data.
-    races: null,
+    races: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTJjWTxKY3fXIMaw9N27zluzLNFza8NvLd7b0GuizpaEoyFncyeLz1df2bGkWk9aHfyihr0Y4zd_oeS/pub?gid=1516945044&single=true&output=csv",
 
     // Add a "Results" tab to the same spreadsheet, publish it, paste its link here.
     // Leave as null to keep using placeholder results data.
-    results: null,
+    results: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTJjWTxKY3fXIMaw9N27zluzLNFza8NvLd7b0GuizpaEoyFncyeLz1df2bGkWk9aHfyihr0Y4zd_oeS/pub?gid=328990172&single=true&output=csv",
 
     // Add a "Posters" tab (Season, Round, Team, Poster URL — one row per team
     // per race). Leave as null to show placeholder tiles on every race page.
-    posters: null,
+    posters: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTJjWTxKY3fXIMaw9N27zluzLNFza8NvLd7b0GuizpaEoyFncyeLz1df2bGkWk9aHfyihr0Y4zd_oeS/pub?gid=92724929&single=true&output=csv",
 
     // Add a "Highlights" tab (Season, Round, Category, Image URL — one row per
     // category per race: Pole Position / Race Winner / FP1 / FP2 /
     // Sprint Qualifying / Sprint Race). Leave null to hide the section.
-    highlights: null,
+    highlights: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTJjWTxKY3fXIMaw9N27zluzLNFza8NvLd7b0GuizpaEoyFncyeLz1df2bGkWk9aHfyihr0Y4zd_oeS/pub?gid=1892055000&single=true&output=csv",
 
-    // Add a "Notes" tab (Season, Round, Notes — free text, one row per race).
-    // Leave null to hide the section.
-    notes: null,
+    // Race notes now live in a Google Doc (see README section 3) — no Notes tab needed.
 
     // Add a "Circuits" tab (Circuit, Circuit Map URL — ONE ROW PER CIRCUIT,
     // not per race). Set up once; every race at that circuit — this year,
     // next year, every year — picks it up automatically by matching the
     // "Circuit" name already in your Races tab. Leave null to hide the map.
-    circuits: null,
+    circuits: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTJjWTxKY3fXIMaw9N27zluzLNFza8NvLd7b0GuizpaEoyFncyeLz1df2bGkWk9aHfyihr0Y4zd_oeS/pub?gid=1791155779&single=true&output=csv",
   },
 
   // Fixed category list for the Highlights tab, in display order.
   // Values in your Highlights tab's "Category" column must match one of
   // these exactly.
   HIGHLIGHT_CATEGORIES: [
-    "Pole Position", "Race Winner", "FP1", "FP2", "Sprint Qualifying", "Sprint Race",
+    "Pole Position", "Race Winner", "FP1", "FP2", "FP3", "Sprint Qualifying", "Sprint Race",
   ],
 
   // Teams whose posters should render larger in the poster wall.
@@ -104,7 +102,6 @@ const CONFIG = {
       results: "Results",
       posters: "Posters",
       highlights: "Highlights",
-      notes: "Notes",
       circuits: "Circuits",
     },
   },

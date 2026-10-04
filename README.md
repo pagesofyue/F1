@@ -7,7 +7,9 @@ A static site (no build step) backed by Google Sheets, deployable on GitHub Page
   that race's 11 team posters (Ferrari/Red Bull/Racing Bulls shown bigger), a circuit map,
   pole/winner/session highlight graphics, and your personal race notes
 - **Team page** — driver roster for that team
-- **Admin panel** (`admin.html`) — add/edit/delete rows in any of the 7 tabs from the site itself
+- **Standings page** (`standings.html`) — Driver and Constructor championship standings,
+  **auto-computed** by summing every Points value in your Results tab, and also written out to a **Google Doc** each time results change
+- **Admin panel** (`admin.html`) — add/edit/delete rows in the sheet tabs from the site itself
   (needs a one-time Apps Script setup — see section 3 below)
 
 Right now the calendar and results are running on **placeholder data** (you'll see a small
@@ -105,7 +107,7 @@ One row per category per race:
 | 2026 | 1 | Pole Position | `https://.../round1-pole.jpg` |
 | 2026 | 1 | Race Winner | `https://.../round1-winner.jpg` |
 
-- **Category** must be exactly one of: `Pole Position`, `Race Winner`, `FP1`, `FP2`,
+- **Category** must be exactly one of: `Pole Position`, `Race Winner`, `FP1`, `FP2`, `FP3`,
   `Sprint Qualifying`, `Sprint Race` (edit this list in `CONFIG.HIGHLIGHT_CATEGORIES` in
   `js/config.js` if your categories differ).
 - The whole section is hidden on a race page until this tab has at least one row — no empty
@@ -113,16 +115,20 @@ One row per category per race:
 
 Paste the link into `SHEET_URLS.highlights`.
 
-### Add a new "Notes" tab (optional — your personal race notes)
+### Race notes (Google Doc — no sheet tab)
 
-One row per race:
+Notes now live in a **Google Doc**, created for you by `setupDocs()` (section 3). One Doc for the
+season, one **Heading 1** per round:
 
-| Season | Round | Notes |
-|---|---|---|
-| 2026 | 1 | Great strategy call on lap 32... |
+```
+Round 1 — Australian Grand Prix      <- Heading 1
+Great strategy call on lap 32...     <- normal paragraphs / bullets
+Image: https://.../round1-note.jpg   <- optional, own line, shows as a picture
+```
 
-Paste the link into `SHEET_URLS.notes`. Like Highlights, this section stays hidden until a race
-has a note.
+- Keep the words `Round N` in each Heading 1 — that's how a note is matched to a race page.
+- Edit the Doc like any other; the race page picks changes up on next load.
+- A race with nothing written under its heading shows no notes section.
 
 ### Add a new "Circuits" tab (optional — circuit maps, set up ONCE per track)
 
@@ -151,7 +157,6 @@ SHEET_URLS: {
   results:    "PASTE YOUR RESULTS CSV LINK HERE",
   posters:    "PASTE YOUR POSTERS CSV LINK HERE",    // optional, can stay null
   highlights: "PASTE YOUR HIGHLIGHTS CSV LINK HERE", // optional, can stay null
-  notes:      "PASTE YOUR NOTES CSV LINK HERE",      // optional, can stay null
   circuits:   "PASTE YOUR CIRCUITS CSV LINK HERE",   // optional, can stay null
 },
 ```
@@ -162,9 +167,21 @@ just edit the spreadsheet.
 
 ---
 
+## Export a race page to PDF
+
+Every race page has an **⤓ Export PDF** button. It opens the print dialog with a purpose-built
+layout — choose **Save as PDF** as the destination (turn on "Background graphics" if your browser
+offers it). The PDF contains: circuit map (no background or border), the team posters (Ferrari / Red Bull / Racing Bulls larger, then the other eight), FP1–FP3 in three columns, then Sprint Qualifying, Sprint,
+Qualifying and Race in two columns (pole sitter / winner graphic on the left, results on the right),
+then your race notes — all in Special Elite. Sessions with no results are skipped.
+
+The graphics come from the **Highlights** tab: `Pole Position` → Qualifying, `Race Winner` → Race,
+`Sprint Qualifying`, `Sprint Race`, and `FP1`/`FP2`/`FP3` for practice. Missing ones fall back to a
+coloured initials tile.
+
 ## 3. Admin panel (edit everything from the site)
 
-`admin.html` lets you add/edit/delete rows in Teams, Races, Results, and Posters directly from
+`admin.html` lets you add/edit/delete rows in Teams, Races, Results, Posters, Highlights and Circuits directly from
 the site, without opening the spreadsheet. It still reads and writes to your actual Google
 Sheet — it just gives you a form instead of spreadsheet cells.
 
@@ -188,6 +205,20 @@ Apps Script "Web app"** attached to your spreadsheet, which the admin page talks
 7. In the same `ADMIN.SHEET_NAMES` block, make sure each key points to your **actual** tab name
    (case-sensitive) — e.g. if your Teams tab is still called `Sheet1`, set `teams: "Sheet1"`.
 8. Open `admin.html` on your deployed site and enter the password from step 3.
+
+### Google Docs setup (race notes + standings export)
+
+After step 5 above is working (the Web app URL is in `config.js`):
+
+1. In Apps Script, select **`setupDocs`** and click **Run**. Google will ask for permission to
+   manage Docs — allow it. This creates two Docs and fills the notes Doc with a heading per round
+   from your Races tab. Open **View → Logs** (or Execution log) for both links.
+2. *(Optional)* Run **`installStandingsTrigger`** once so typing directly in the Results tab also
+   refreshes the standings Doc. Edits made through `admin.html` refresh it automatically.
+3. **Redeploy**: Deploy → Manage deployments → ✎ → Version: New version → Deploy.
+4. The Docs are private to your Google account. The website reads them through the Apps Script, so
+   visitors see the notes without needing access. To let others open the standings Doc itself,
+   use the Doc's Share button.
 
 **If you ever edit `Code.gs` again:** go to **Deploy → Manage deployments → ✎ (edit) → Version:
 New version → Deploy**. This keeps the same URL working with your changes (a brand new
@@ -241,12 +272,13 @@ uploads, which a GitHub Pages + Google Sheets site doesn't have.
 index.html            Homepage: calendar + teams grid
 race.html             Race detail: session-tabbed results + posters
 team.html             Team detail: driver roster
+standings.html        Driver & Constructor standings (auto-computed from Results)
 admin.html            Admin panel: add/edit/delete rows from the site
 css/style.css         All styling
 js/config.js           ← your Sheet links + settings live here
 js/placeholder-data.js   Fallback data used until races/results are connected
 js/utils.js            CSV loading, image resolution, upload widget
-js/home.js / race.js / team.js   Page-specific rendering logic
+js/home.js / race.js / team.js / standings.js   Page-specific rendering logic
 js/admin.js            Admin panel logic (talks to apps-script/Code.gs)
 js/vendor/papaparse.min.js   CSV parser (bundled, no CDN dependency)
 apps-script/Code.gs    Paste into Extensions > Apps Script on your Sheet

@@ -294,16 +294,6 @@
       return buildSelect(header, value, ["", ...roster.circuits], { allowCustom: true });
     }
 
-    // Notes: free text, often more than one line.
-    if (header === "Notes") {
-      const textarea = document.createElement("textarea");
-      textarea.className = "admin-input admin-textarea";
-      textarea.dataset.field = header;
-      textarea.value = value;
-      textarea.rows = 4;
-      return textarea;
-    }
-
     // Status means different things on different tabs.
     if (header === "Status") {
       const options = activeTabKey === "teams"
