@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Season PDF — Grid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Special+Elite&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="topbar__mark">GRID <span id="season-tag">2026</span></div>
+    <nav class="topbar__nav">
+      <a href="index.html">Calendar</a>
+      <a href="standings.html">Standings</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  </div>
+</header>
+
+<section class="section">
+  <div class="wrap" style="max-width:640px">
+    <div class="section__head"><h2>Season PDF</h2></div>
+    <p style="color:var(--text-dim)">
+      One PDF for the whole season: a cover with a clickable table of contents, then every race
+      (circuit map, posters, FP1–3, qualifying, sprints, race, notes), one race per page group.
+    </p>
+    <label style="display:flex;gap:8px;align-items:center;margin:16px 0;font-size:14px">
+      <input type="checkbox" id="include-empty" />
+      Also include races with no results yet
+    </label>
+    <p id="pdf-status" class="section__note">Loading season data…</p>
+    <button type="button" class="btn btn--primary" id="pdf-go" disabled>⤓ Save season as PDF</button>
+    <p style="color:var(--text-dim);font-size:13px;margin-top:14px">
+      The print dialog opens when it's ready — choose <b>Save as PDF</b> and turn on
+      <b>Background graphics</b>. Loading all the images can take a moment.
+    </p>
+  </div>
+</section>
+
+<div class="print-sheet" id="print-sheet" aria-hidden="true"></div>
+
+<script src="js/vendor/papaparse.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/placeholder-data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/pdf-sheet.js"></script>
+<script src="js/season-pdf.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@
     <a class="topbar__mark" href="index.html">GRID <span id="season-tag">2026</span></a>
     <nav class="topbar__nav">
       <a href="standings.html">Standings</a>
+      <a href="admin.html">Admin</a>
     </nav>
   </div>
 </header>
@@ -33,14 +34,24 @@
     <div id="circuit-map-wrap"></div>
     <button type="button" class="btn btn--ghost" id="export-pdf" style="margin-top:20px">⤓ Export PDF</button>
   </div>
+</section>
+
+<section class="section" id="posters-section">
   <div class="wrap">
-    <div class="session-tabs" id="session-tabs"></div>
+    <div class="section__head">
+      <h2>Race Posters</h2>
+      <span class="section__note" id="posters-note">Ferrari, Red Bull &amp; Racing Bulls featured</span>
+    </div>
+    <div class="poster-wall" id="poster-wall"></div>
   </div>
 </section>
 
 <section class="section">
   <div class="wrap">
+    <div class="session-tabs" id="session-tabs"></div>
     <span class="section__note" id="results-note"></span>
+    <div id="results-tools" style="margin:10px 0"></div>
+    <div id="results-editor"></div>
     <table class="results-table" id="results-table" style="display:none">
       <thead>
         <tr>
@@ -66,21 +77,14 @@
   </div>
 </section>
 
-<section class="section" id="posters-section">
-  <div class="wrap">
-    <div class="section__head">
-      <h2>Race Posters</h2>
-      <span class="section__note" id="posters-note">Ferrari, Red Bull &amp; Racing Bulls featured</span>
-    </div>
-    <div class="poster-wall" id="poster-wall"></div>
-  </div>
-</section>
-
 <section class="section" id="notes-section" style="display:none">
   <div class="wrap">
     <div class="section__head">
       <h2>Race Notes</h2>
-      <a class="section__note" id="notes-doc-link" href="#" target="_blank" rel="noopener" style="display:none">Open in Google Docs ↗</a>
+      <span style="display:flex;gap:12px;align-items:center">
+        <a class="section__note" id="notes-doc-link" href="#" target="_blank" rel="noopener" style="display:none">Open in Google Docs ↗</a>
+        <button type="button" class="btn btn--ghost btn--small" id="notes-edit" style="display:none">✎ Edit notes</button>
+      </span>
     </div>
     <div class="notes-block" id="notes-block"></div>
   </div>
@@ -99,6 +103,8 @@
 <script src="js/placeholder-data.js"></script>
 <script src="js/utils.js"></script>
 <div class="print-sheet" id="print-sheet" aria-hidden="true"></div>
+<script src="js/pdf-sheet.js"></script>
+<script src="js/edit-mode.js"></script>
 <script src="js/race.js"></script>
 </body>
 </html>

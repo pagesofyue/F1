@@ -50,15 +50,15 @@
 <!-- Main panel (shown after unlocking) -->
 <section class="section" id="panel" style="display:none">
   <div class="wrap">
+    <p style="color:var(--text-dim);max-width:62ch;margin:0 0 18px">Drivers, rounds, circuits, posters and highlights live here. Race results and notes are edited right on each race page — press <b>🔒 Edit</b> in the top menu there.</p>
     <div class="section__head">
-      <h2>Edit data</h2>
+      <h2>Back-end setup</h2>
       <button type="button" class="btn btn--ghost" id="signout-btn">Sign out</button>
     </div>
 
     <div class="admin-tabs" id="admin-tabs">
       <button class="admin-tab is-active" data-tab="teams">Teams</button>
       <button class="admin-tab" data-tab="races">Races</button>
-      <button class="admin-tab" data-tab="results">Results</button>
       <button class="admin-tab" data-tab="posters">Posters</button>
       <button class="admin-tab" data-tab="highlights">Highlights</button>
       <button class="admin-tab" data-tab="circuits">Circuits</button>
@@ -70,7 +70,7 @@
       <div class="empty-state">Loading…</div>
     </div>
 
-    <h3 class="admin-subhead">Add new row</h3>
+    <h3 class="admin-subhead" id="admin-add-head">Add new row</h3>
     <form id="admin-add-form" class="admin-form admin-form--grid"></form>
   </div>
 </section>

@@ -179,9 +179,40 @@ The graphics come from the **Highlights** tab: `Pole Position` → Qualifying, `
 `Sprint Qualifying`, `Sprint Race`, and `FP1`/`FP2`/`FP3` for practice. Missing ones fall back to a
 coloured initials tile.
 
+## Season PDF (all races + table of contents)
+
+**Season PDF** in the top menu (`season-pdf.html`) builds one PDF for the whole season: a cover
+titled "Formula 2026 Season" with a clickable table of contents (Round 1 - Australian Grand Prix …),
+then every race in the same layout as the single-race export. By default only races that already
+have results are included; tick the box to include the whole calendar. Click **Save season as PDF**,
+choose **Save as PDF** in the print dialog and turn on **Background graphics**. Page numbers print at
+the bottom right (Chrome/Edge); the contents entries are links, but don't show page numbers.
+
+## Editing on the page (results + notes) — no separate admin needed
+
+1. Open any race page and press **🔒 Edit** in the top menu. Type the admin password once
+   (it's remembered for that browser session; press **✎ Editing — lock** to lock again).
+2. **Results:** pick a session tab (in edit mode every session can be opened), press
+   **✎ Edit … results**, type or pick drivers (team and number fill in), set Pos/Pts, **Save results**.
+   Race and Sprint rows are pre-filled with the standard F1 points. Rows with no driver are ignored.
+   Saving replaces that session's rows in your Results tab and refreshes the standings Doc.
+3. **Notes:** press **✎ Edit notes**, type, **Save** — written into the Google Doc under that round.
+   (One line = one paragraph, `- ` = bullet, `Image: https://…` = picture.)
+
+Visitors never see the edit buttons — they only appear after the password is entered.
+When the Apps Script is connected, results are read live from it, so edits show instantly.
+
+### Sprint weekends
+The Races tab gets a **Sprint Weekend** column (the script adds the header automatically the first
+time admin loads Races). Set it to **Yes** or **No** per round in `admin.html`. When it's No,
+Sprint Qualifying, Sprint, their highlight tiles and their PDF sections are hidden. If the cell is
+blank, the site guesses from whether any sprint results exist.
+
+After changing `Code.gs`, redeploy (Deploy → Manage deployments → ✎ → New version → Deploy).
+
 ## 3. Admin panel (edit everything from the site)
 
-`admin.html` lets you add/edit/delete rows in Teams, Races, Results, Posters, Highlights and Circuits directly from
+`admin.html` is now **back-end setup only** — drivers (Teams), rounds (Races, incl. Sprint Weekend), Circuits, Posters and Highlights. Results and notes are edited on the race page. It lets you add/edit/delete rows in those tabs directly from
 the site, without opening the spreadsheet. It still reads and writes to your actual Google
 Sheet — it just gives you a form instead of spreadsheet cells.
 
