@@ -232,6 +232,19 @@ mark rows with **Delete** (press **Undo** to take it back), then press **Save ch
 whole page is written in one go. Edited rows turn yellow, and the button shows how many changes are
 waiting. Leaving the tab or page with unsaved changes asks first.
 
+## What changed in build r6
+
+- **Dates:** the Races tab in admin has date pickers. The site shows them as `Mar 6–8` / `Oct 10`.
+- **Status:** Races now has **Cancelled**. Cancelled rounds get a stamp and no round number; the
+  other rounds are numbered as if it wasn't there (the sheet's Round column never changes).
+- **Calendar:** compact 4-across cards with a SPRINT tag and a "Next up" note.
+- **Driver photos:** cropped from the top; names stay on one line.
+- **Results editor:** type a driver's name, number or 3-letter code (LEC, 16) and press Enter —
+  team, number and points fill in. Points follow the position (Race 25–1, Sprint 8–1) unless you
+  type your own. Each session also has a photo field: paste a link (Pinterest etc.) or upload a file;
+  it is saved to the Highlights tab (uploads go to a "Grid uploads" folder in your Google Drive).
+  Optional: add a `Driver Code` column to Teams if a driver's code isn't the first 3 letters of the surname.
+
 ## 3. Admin panel (edit everything from the site)
 
 `admin.html` is now **back-end setup only** — drivers (Teams), rounds (Races, incl. Sprint Weekend), Circuits, Posters and Highlights. Results and notes are edited on the race page. It lets you add/edit/delete rows in those tabs directly from

@@ -18,11 +18,12 @@
   const races = racesRes.rows
     .filter(r => String(r.Season) === String(season))
     .sort((a, b) => Number(a.Round) - Number(b.Round));
+  const labels = Utils.roundLabels(races);
   const resultsByRound = Utils.groupBy(resultsRes.rows.filter(r => String(r.Season) === String(season)), "Round");
   const hasResults = (r) => (resultsByRound[r.Round] || []).length > 0;
 
   function build() {
-    const list = races.filter(r => chk.checked || hasResults(r));
+    const list = races.filter(r => !Utils.isCancelled(r) && (chk.checked || hasResults(r)));
     if (!list.length) {
       document.getElementById("print-sheet").innerHTML = "";
       status.textContent = "No races with results yet — tick the box above to include the whole calendar.";
@@ -32,7 +33,7 @@
 
     const toc = list.map(r => `
       <li><a href="#ps-race-${esc(r.Round)}">
-        <span>Round ${esc(r.Round)} - ${esc(r["Race Name"] || "TBC")}</span><i></i>
+        <span>Round ${esc(labels[String(r.Round)])} - ${esc(r["Race Name"] || "TBC")}</span><i></i>
         <em>${esc(Utils.formatDateRange(r["Start Date"], r["End Date"]))}</em>
       </a></li>`).join("");
 
@@ -46,7 +47,7 @@
     const raceHtml = list.map(r => {
       const note = notesDoc && notesDoc.notes.find(n => Number(n.round) === Number(r.Round));
       return `<article class="ps-race" id="ps-race-${esc(r.Round)}">${PdfSheet.raceHTML({
-        race: r, season, bySession: Utils.groupBy(resultsByRound[r.Round] || [], "Session"),
+        race: r, season, roundLabel: labels[String(r.Round)], bySession: Utils.groupBy(resultsByRound[r.Round] || [], "Session"),
         notesBlocks: note ? note.blocks : [],
         highlightRows: highlightsRes.rows, posterRows: postersRes.rows, circuitRows: circuitsRes.rows,
       })}</article>`;

@@ -28,6 +28,8 @@ const SEASON = 2026;
 // Exact tab names in this spreadsheet
 const RESULTS_TAB = 'Results';
 const RACES_TAB = 'Races';
+const HIGHLIGHTS_TAB = 'Highlights';
+const UPLOAD_FOLDER_NAME = 'Grid uploads';
 
 /** Run this once from the Apps Script editor (select it in the function
  *  dropdown, click Run) after changing the password below. You can re-run
@@ -64,6 +66,8 @@ function doPost(e) {
       return jsonOut_({ ok: false, error: 'Incorrect password.' });
     }
     if (payload.action === 'verify') return jsonOut_({ ok: true });
+    if (payload.action === 'uploadImage') return jsonOut_(uploadImage_(payload));
+    if (payload.action === 'saveHighlight') return jsonOut_(saveHighlight_(payload));
     if (payload.action === 'saveBatch') return jsonOut_(saveBatch_(payload));
     if (payload.action === 'saveResults') return jsonOut_(saveResults_(payload));
     if (payload.action === 'saveNote') return jsonOut_(saveNote_(payload.round, payload.title, payload.text));
@@ -317,6 +321,56 @@ function readNotesDoc_() {
   return { ok: true, url: doc.getUrl(), notes: notes };
 }
 
+/** Saves an uploaded photo (base64) to Drive and returns a link the site can display. */
+function uploadImage_(payload) {
+  const data = String(payload.data || '');
+  if (!data) return { ok: false, error: 'No image data.' };
+  if (data.length > 9 * 1024 * 1024) return { ok: false, error: 'Image is too large (max ~6 MB).' };
+  const mime = /^image\/(jpeg|png|webp|gif)$/.test(payload.mime) ? payload.mime : 'image/jpeg';
+  const name = String(payload.name || ('upload-' + Date.now())).replace(/[^\w.\- ]/g, '_');
+
+  const folders = DriveApp.getFoldersByName(UPLOAD_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(UPLOAD_FOLDER_NAME);
+  const file = folder.createFile(Utilities.newBlob(Utilities.base64Decode(data), mime, name));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { ok: true, url: 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1600' };
+}
+
+/** Sets (or replaces) the Highlights image for one Season + Round + Category.
+ *  Accepts a direct image link or a page link (Pinterest etc.), which is resolved first. */
+function saveHighlight_(payload) {
+  const season = String(payload.season || '').trim(), round = String(payload.round || '').trim();
+  const category = String(payload.category || '').trim();
+  if (!season || !round || !category) return { ok: false, error: 'Missing season, round or category.' };
+  const resolved = resolveImageUrl_(payload.url);
+  if (resolved.error) return { ok: false, error: resolved.error };
+  const url = resolved.url;
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = getSheet_(HIGHLIGHTS_TAB);
+    const headers = getHeaders_(sheet);
+    const iS = headers.indexOf('Season'), iR = headers.indexOf('Round'),
+          iC = headers.indexOf('Category'), iU = headers.indexOf('Image URL');
+    if (iS < 0 || iR < 0 || iC < 0 || iU < 0) return { ok: false, error: 'Highlights tab needs Season, Round, Category and Image URL columns.' };
+
+    const last = sheet.getLastRow();
+    const rows = last > 1 ? sheet.getRange(2, 1, last - 1, headers.length).getValues() : [];
+    const at = rows.findIndex(r => String(r[iS]).trim() === season && String(r[iR]).trim() === round && String(r[iC]).trim() === category);
+    if (at >= 0) sheet.getRange(at + 2, iU + 1).setValue(url);
+    else {
+      const row = headers.map(() => '');
+      row[iS] = Number(season) || season; row[iR] = Number(round) || round; row[iC] = category; row[iU] = url;
+      sheet.getRange(last + 1, 1, 1, headers.length).setValues([row]);
+    }
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  return { ok: true, url: url };
+}
+
 /** Saves a whole admin page at once: edited rows, new rows and deleted rows in one request. */
 function saveBatch_(payload) {
   const updates = Array.isArray(payload.updates) ? payload.updates : [];
@@ -520,10 +574,14 @@ function readRows_(sheet, headers) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2 || headers.length === 0) return [];
   const values = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+  const tz = SpreadsheetApp.getActive().getSpreadsheetTimeZone();
   return values
     .map((row, i) => {
       const obj = { _row: i + 2 }; // actual sheet row number, needed for update/delete
-      headers.forEach((h, idx) => { obj[h] = row[idx]; });
+      headers.forEach((h, idx) => {
+        const v = row[idx];
+        obj[h] = (v instanceof Date) ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : v;
+      });
       return obj;
     })
     .filter(obj => headers.some(h => obj[h] !== '' && obj[h] !== undefined && obj[h] !== null));

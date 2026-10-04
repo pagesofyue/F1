@@ -21,9 +21,9 @@ const Utils = (() => {
     // Results are read live from the Apps Script when it's connected, so edits made
     // on the race page show up immediately (the published CSV can lag by minutes).
     const live = CONFIG.ADMIN && CONFIG.ADMIN.APPS_SCRIPT_URL;
-    if (tabKey === "results" && live) {
+    if (live && ["results", "highlights", "posters", "circuits"].includes(tabKey)) {
       try {
-        const name = CONFIG.ADMIN.SHEET_NAMES.results;
+        const name = CONFIG.ADMIN.SHEET_NAMES[tabKey];
         const res = await fetch(`${live}?tab=${encodeURIComponent(name)}`, { cache: "no-store" });
         const json = await res.json();
         if (json.ok && json.rows.length) return { rows: json.rows, isPlaceholder: false };
@@ -87,18 +87,42 @@ const Utils = (() => {
       .toUpperCase();
   }
 
+  // Accepts 2026-03-06, 2026-03-06T00:00:00Z, or 3/6/2026 (CSV) -> local Date at midnight
+  function parseDate(v) {
+    if (!v) return null;
+    if (v instanceof Date) return v;
+    const str = String(v).trim();
+    let m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(+m[3], +m[1] - 1, +m[2]);
+    const d = new Date(str);
+    return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  // "Oct 10", "Oct 10–12", "Oct 30–Nov 1"
   function formatDateRange(startStr, endStr) {
-    const opts = { month: "short", day: "numeric" };
-    const start = startStr ? new Date(startStr + "T00:00:00") : null;
-    const end = endStr ? new Date(endStr + "T00:00:00") : null;
+    const start = parseDate(startStr), end = parseDate(endStr);
     if (!start && !end) return "TBC";
-    if (start && end) {
-      const sameMonth = start.getMonth() === end.getMonth();
-      const startFmt = start.toLocaleDateString("en-US", sameMonth ? { day: "numeric" } : opts);
-      const endFmt = end.toLocaleDateString("en-US", { ...opts, year: "numeric" });
-      return `${startFmt}–${endFmt}`;
+    const md = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (!start || !end || start.getTime() === end.getTime()) return md(start || end);
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+      return `${md(start)}–${end.getDate()}`;
     }
-    return (start || end).toLocaleDateString("en-US", { ...opts, year: "numeric" });
+    return `${md(start)}–${md(end)}`;
+  }
+
+  const isCancelled = (race) => String(race.Status || "").trim().toLowerCase() === "cancelled";
+
+  // Round numbers as shown on the site: cancelled races get no number and the rest close the gap.
+  // Underlying sheet Round values (used for results, notes, links) never change.
+  function roundLabels(races) {
+    const labels = {};
+    let n = 0;
+    [...races].sort((a, b) => Number(a.Round) - Number(b.Round)).forEach(r => {
+      labels[String(r.Round)] = isCancelled(r) ? null : ++n;
+    });
+    return labels;
   }
 
   function teamColor(teamName) {
@@ -239,7 +263,7 @@ const Utils = (() => {
   });
 
   return {
-    fetchCSV, loadTab, fetchDoc, isSprintWeekend, SPRINT_SESSIONS, SPRINT_CATEGORIES, slugify, initials, formatDateRange, teamColor, groupBy,
+    fetchCSV, loadTab, fetchDoc, normalizeImageUrl, parseDate, isCancelled, roundLabels, isSprintWeekend, SPRINT_SESSIONS, SPRINT_CATEGORIES, slugify, initials, formatDateRange, teamColor, groupBy,
     placeholderImage, getOverride, setOverride, clearOverride,
     resolveImageSrc, attachUploader, buildImageSlot,
   };

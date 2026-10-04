@@ -327,11 +327,22 @@
       return buildSelect(header, value, ["", ...roster.circuits], { allowCustom: true });
     }
 
+    // Dates: a date picker (stored as YYYY-MM-DD, shown on the site as "Oct 10").
+    if (header === "Start Date" || header === "End Date") {
+      const input = document.createElement("input");
+      input.type = "date";
+      input.className = "admin-input";
+      input.dataset.field = header;
+      const d = Utils_parseDate(value);
+      input.value = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
+      return input;
+    }
+
     // Status means different things on different tabs.
     if (header === "Status") {
       const options = activeTabKey === "teams"
         ? ["", "Full Time", "Reserved"]
-        : ["", "Upcoming", "Completed", "Live"];
+        : ["", "Upcoming", "Live", "Completed", "Cancelled"];
       return buildSelect(header, value, options);
     }
 
@@ -346,6 +357,18 @@
     }
     input.placeholder = fieldHint(header);
     return input;
+  }
+
+  // admin.html doesn't load utils.js, so a tiny local copy of the date parsing
+  function Utils_parseDate(v) {
+    if (!v) return null;
+    const str = String(v).trim();
+    let m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) return new Date(+m[3], +m[1] - 1, +m[2]);
+    const d = new Date(str);
+    return isNaN(d) ? null : d;
   }
 
   function buildSelect(header, value, optionValues, { onChange, allowCustom } = {}) {

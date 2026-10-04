@@ -26,7 +26,10 @@
     return;
   }
 
-  document.getElementById("race-meta").textContent = `ROUND ${String(race.Round).padStart(2, "0")} — ${season}`;
+  const roundLabels = Utils.roundLabels(racesRes.rows.filter(r => String(r.Season) === String(season)));
+  const roundLabel = roundLabels[String(race.Round)];
+  document.getElementById("race-meta").textContent = roundLabel
+    ? `ROUND ${String(roundLabel).padStart(2, "0")} — ${season}` : `CANCELLED — ${season}`;
   document.getElementById("race-name").textContent = race["Race Name"] || "TBC";
   document.getElementById("race-country").textContent = race.Country || "—";
   document.getElementById("race-circuit").textContent = race.Circuit || "—";
@@ -143,24 +146,63 @@
     `).join("");
   }
 
+  /* ---------- roster: name / number / 3-letter code -> driver + team ---------- */
   function rosterFor() {
     const rows = teamsRes.rows.filter(r => String(r["Season"]) === String(season));
     const map = new Map();
     (rows.length ? rows : teamsRes.rows).forEach(r => {
-      if (r["Driver"]) map.set(r["Driver"], { no: r["Driver No."] || "", team: r["Team Name"] || "" });
+      const name = r["Driver"];
+      if (!name) return;
+      const explicit = String(r["Driver Code"] || r["Code"] || "").trim();
+      const surname = name.trim().split(/\s+/).slice(-1)[0];
+      map.set(name, { name, no: r["Driver No."] || "", team: r["Team Name"] || "",
+                      code: (explicit || surname.slice(0, 3)).toUpperCase() });
     });
-    return [...map.entries()].map(([name, v]) => ({ name, ...v }));
+    return [...map.values()];
+  }
+
+  function matchDrivers(drivers, q, exclude) {
+    q = q.trim().toLowerCase();
+    if (!q) return [];
+    const scored = [];
+    drivers.forEach(d => {
+      if (exclude.has(d.name)) return;
+      const name = d.name.toLowerCase(), code = d.code.toLowerCase(), no = String(d.no);
+      let score = null;
+      if (no === q || code === q) score = 0;
+      else if (code.startsWith(q) || (/^\d+$/.test(q) && no.startsWith(q))) score = 1;
+      else if (name.split(/\s+/).some(w => w.startsWith(q))) score = 2;
+      else if (name.includes(q)) score = 3;
+      if (score !== null) scored.push({ d, score });
+    });
+    return scored.sort((a, b) => a.score - b.score || a.d.name.localeCompare(b.d.name)).slice(0, 6).map(x => x.d);
+  }
+
+  // Shrinks + compresses a chosen photo so uploads stay small
+  async function prepImage(file) {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const png = file.type === "image/png";
+    const mime = png ? "image/png" : "image/jpeg";
+    return { mime, name: file.name.replace(/\.\w+$/, "") + (png ? ".png" : ".jpg"), data: c.toDataURL(mime, 0.85).split(",")[1] };
   }
 
   function openEditor() {
     const key = activeKey;
     const drivers = rosterFor();
-    const ptsFor = (pos) => (key === "Race" ? RACE_PTS : key === "Sprint" ? SPRINT_PTS : [])[pos - 1] ?? "";
+    const gfx = PdfSheet.SESSION_GRAPHIC[key];
+    const autoPts = (pos) => (key === "Race" ? RACE_PTS : key === "Sprint" ? SPRINT_PTS : [])[Number(pos) - 1] ?? "";
+    const currentGfx = highlightsRes.rows.find(r => r.Category === gfx.cat &&
+      String(r.Round) === String(race.Round) && String(r.Season) === String(season))?.["Image URL"] || "";
+
     let rows = [...(bySession[key] || [])].sort(byPos).map(r => ({
       pos: r.Position, no: r["Driver No."] ?? "", driver: r.Driver ?? "", team: r.Team ?? "", pts: r.Points ?? "" }));
     if (!rows.length) {
       rows = Array.from({ length: Math.max(drivers.length, 20) }, (_, i) =>
-        ({ pos: i + 1, no: "", driver: "", team: "", pts: ptsFor(i + 1) }));
+        ({ pos: i + 1, no: "", driver: "", team: "", pts: autoPts(i + 1) }));
     }
 
     editorOpen = true;
@@ -169,39 +211,113 @@
     document.getElementById("results-empty").style.display = "none";
 
     editorEl.innerHTML = `
-      <datalist id="em-drivers">${drivers.map(d => `<option value="${PdfSheet.esc(d.name)}"></option>`).join("")}</datalist>
       <datalist id="em-teams">${CONFIG.TEAM_ORDER.map(t => `<option value="${PdfSheet.esc(t)}"></option>`).join("")}</datalist>
       <h3 class="admin-subhead" style="margin-top:0">Editing ${PdfSheet.esc(labelOf(key))}</h3>
+      <p class="section__note" style="margin:0 0 10px">Type a driver's name, number or code (LEC, 16…) and press Enter — team, number and points fill in by themselves.</p>
       <div style="overflow-x:auto"><table class="em-table">
         <thead><tr><th>Pos</th><th>No.</th><th>Driver</th><th>Team</th><th>Pts</th><th></th></tr></thead>
         <tbody id="em-body"></tbody>
       </table></div>
       <div class="em-actions">
         <button type="button" class="btn btn--ghost btn--small" id="em-add">+ Add row</button>
+      </div>
+
+      <div class="em-graphic">
+        <div class="em-graphic__thumb"><img id="em-gfx-img" alt="" ${currentGfx ? `src="${PdfSheet.esc(Utils.normalizeImageUrl(currentGfx))}"` : ""}></div>
+        <div class="em-graphic__fields">
+          <label class="em-label">${PdfSheet.esc(gfx.cap)} photo — paste a link (Pinterest, Imgur, Drive…) or upload one</label>
+          <input id="em-gfx-link" class="admin-input" placeholder="https://…" value="${PdfSheet.esc(currentGfx)}">
+          <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+            <button type="button" class="btn btn--ghost btn--small" id="em-gfx-pick">⬆ Upload photo</button>
+            <input type="file" id="em-gfx-file" accept="image/*" hidden>
+            <span class="section__note" id="em-gfx-name"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="em-actions">
         <button type="button" class="btn btn--primary" id="em-save">Save results</button>
         <button type="button" class="btn btn--ghost" id="em-cancel">Cancel</button>
         <span class="section__note" id="em-msg"></span>
       </div>
-      <p class="section__note">Type or pick a driver — team and number fill in automatically. Rows with no driver are ignored.</p>`;
+      <ul class="em-suggest" id="em-suggest" hidden></ul>`;
 
     const body = document.getElementById("em-body");
     const msg = document.getElementById("em-msg");
+    const box = document.getElementById("em-suggest");
+    let activeInput = null, items = [], hi = 0;
+
+    /* --- driver suggestions --- */
+    const usedElsewhere = (self) => new Set([...body.querySelectorAll(".em-driver")]
+      .filter(i => i !== self).map(i => i.value.trim()).filter(Boolean));
+
+    function hideBox() { box.hidden = true; activeInput = null; }
+    function showBox(input) {
+      activeInput = input;
+      items = matchDrivers(drivers, input.value, usedElsewhere(input));
+      hi = 0;
+      if (!items.length) { box.hidden = true; return; }
+      box.innerHTML = items.map((d, i) =>
+        `<li data-i="${i}" class="${i === hi ? "is-hi" : ""}"><b>${PdfSheet.esc(d.code)}</b> <span>#${PdfSheet.esc(d.no)}</span> ${PdfSheet.esc(d.name)}
+         <i style="background:${Utils.teamColor(d.team)}"></i><em>${PdfSheet.esc(d.team)}</em></li>`).join("");
+      const r = input.getBoundingClientRect();
+      Object.assign(box.style, { left: r.left + "px", top: r.bottom + 2 + "px", minWidth: Math.max(r.width, 300) + "px" });
+      box.hidden = false;
+    }
+    function highlight(n) {
+      hi = (n + items.length) % items.length;
+      [...box.children].forEach((li, i) => li.classList.toggle("is-hi", i === hi));
+    }
+    function pick(tr, d) {
+      tr.querySelector(".em-driver").value = d.name;
+      tr.querySelector(".em-team").value = d.team;
+      tr.querySelector(".em-no").value = d.no;
+      hideBox();
+    }
+    box.addEventListener("mousedown", (e) => {
+      const li = e.target.closest("li");
+      if (!li || !activeInput) return;
+      e.preventDefault();
+      pick(activeInput.closest("tr"), items[Number(li.dataset.i)]);
+    });
 
     function addRow(r) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td><input class="admin-input em-pos" type="number" min="1"></td>
         <td><input class="admin-input em-no" inputmode="numeric"></td>
-        <td><input class="admin-input em-driver" list="em-drivers" placeholder="Driver"></td>
+        <td><input class="admin-input em-driver" placeholder="Name, number or code" autocomplete="off"></td>
         <td><input class="admin-input em-team" list="em-teams" placeholder="Team"></td>
         <td><input class="admin-input em-pts" type="number" step="any"></td>
         <td><button type="button" class="btn btn--ghost btn--small" aria-label="Remove row">✕</button></td>`;
       const q = (c) => tr.querySelector(c);
       q(".em-pos").value = r.pos; q(".em-no").value = r.no;
       q(".em-driver").value = r.driver; q(".em-team").value = r.team; q(".em-pts").value = r.pts;
-      q(".em-driver").addEventListener("input", () => {
-        const d = drivers.find(x => x.name.toLowerCase() === q(".em-driver").value.trim().toLowerCase());
-        if (d) { q(".em-team").value = d.team; q(".em-no").value = d.no; }
+      // points follow the position unless you typed your own value
+      if (r.pts !== "" && String(r.pts) !== String(autoPts(r.pos))) q(".em-pts").dataset.manual = "1";
+
+      q(".em-pos").addEventListener("input", () => {
+        if (!q(".em-pts").dataset.manual) q(".em-pts").value = autoPts(q(".em-pos").value);
+      });
+      q(".em-pts").addEventListener("input", () => { q(".em-pts").dataset.manual = "1"; });
+
+      const drv = q(".em-driver");
+      drv.addEventListener("input", () => showBox(drv));
+      drv.addEventListener("focus", () => { drv.select(); });
+      drv.addEventListener("blur", () => setTimeout(() => { if (activeInput === drv) hideBox(); }, 120));
+      drv.addEventListener("keydown", (e) => {
+        const open = !box.hidden && activeInput === drv && items.length;
+        if (e.key === "ArrowDown" && open) { e.preventDefault(); highlight(hi + 1); }
+        else if (e.key === "ArrowUp" && open) { e.preventDefault(); highlight(hi - 1); }
+        else if (e.key === "Escape") hideBox();
+        else if (e.key === "Enter") {
+          e.preventDefault();
+          if (open) pick(tr, items[hi]);
+          const next = tr.nextElementSibling?.querySelector(".em-driver");
+          if (next) next.focus();
+        } else if (e.key === "Tab" && open && !drivers.some(d => d.name === drv.value.trim())) {
+          pick(tr, items[hi]); // let Tab carry on to the next field
+        }
       });
       tr.querySelector("button").addEventListener("click", () => tr.remove());
       body.appendChild(tr);
@@ -210,10 +326,24 @@
 
     document.getElementById("em-add").addEventListener("click", () => {
       const max = Math.max(0, ...[...body.querySelectorAll(".em-pos")].map(i => Number(i.value) || 0));
-      addRow({ pos: max + 1, no: "", driver: "", team: "", pts: ptsFor(max + 1) });
+      addRow({ pos: max + 1, no: "", driver: "", team: "", pts: autoPts(max + 1) });
+      body.lastElementChild.querySelector(".em-driver").focus();
     });
-    document.getElementById("em-cancel").addEventListener("click", () => { closeEditor(); setActive(key); });
+    document.getElementById("em-cancel").addEventListener("click", () => { hideBox(); closeEditor(); setActive(key); });
 
+    /* --- graphic: link or upload --- */
+    const link = document.getElementById("em-gfx-link"), fileIn = document.getElementById("em-gfx-file");
+    const fname = document.getElementById("em-gfx-name"), thumb = document.getElementById("em-gfx-img");
+    let chosen = null;
+    document.getElementById("em-gfx-pick").addEventListener("click", () => fileIn.click());
+    fileIn.addEventListener("change", () => {
+      chosen = fileIn.files[0] || null;
+      fname.textContent = chosen ? chosen.name : "";
+      if (chosen) { thumb.src = URL.createObjectURL(chosen); link.value = ""; }
+    });
+    link.addEventListener("change", () => { if (link.value.trim()) { chosen = null; fileIn.value = ""; fname.textContent = ""; thumb.src = Utils.normalizeImageUrl(link.value); } });
+
+    /* --- save --- */
     document.getElementById("em-save").addEventListener("click", async () => {
       const out = [...body.children].map(tr => {
         const v = (c) => tr.querySelector(c).value.trim();
@@ -221,14 +351,36 @@
                  Driver: v(".em-driver"), Team: v(".em-team"), Points: v(".em-pts") === "" ? "" : Number(v(".em-pts")) };
       }).filter(r => r.Driver);
 
-      msg.textContent = "Saving…";
       try {
+        // 1) the session photo (if you gave one)
+        let url = link.value.trim();
+        if (chosen) {
+          msg.textContent = "Uploading photo…";
+          const img = await prepImage(chosen);
+          const up = await EditMode.post({ action: "uploadImage", ...img });
+          if (!up.ok) { msg.textContent = up.error || "Photo upload failed."; return; }
+          url = up.url;
+        }
+        if (url && (chosen || url !== currentGfx)) {
+          msg.textContent = "Saving photo…";
+          const h = await EditMode.post({ action: "saveHighlight", season, round: race.Round, category: gfx.cat, url });
+          if (!h.ok) { msg.textContent = h.error || "Couldn't save the photo link."; return; }
+          const row = highlightsRes.rows.find(r => r.Category === gfx.cat &&
+            String(r.Round) === String(race.Round) && String(r.Season) === String(season));
+          if (row) row["Image URL"] = h.url;
+          else highlightsRes.rows.push({ Season: season, Round: race.Round, Category: gfx.cat, "Image URL": h.url });
+          renderHighlights(race, highlightsRes.rows, season);
+        }
+
+        // 2) the results
+        msg.textContent = "Saving results…";
         const json = await EditMode.post({ action: "saveResults", season, round: race.Round, session: key, rows: out });
         if (!json.ok) { msg.textContent = json.error || "Couldn't save."; return; }
       } catch (err) {
         msg.textContent = "Network error — check the Apps Script URL and that it's deployed.";
         return;
       }
+      hideBox();
       if (resultsRes.isPlaceholder) { resultsRes.rows = []; resultsRes.isPlaceholder = false; resultsNote.innerHTML = ""; }
       resultsRes.rows = resultsRes.rows.filter(r => !(String(r.Round) === String(race.Round) &&
         String(r.Season) === String(season) && r.Session === key));
@@ -457,7 +609,7 @@
   /* PDF export — layout lives in js/pdf-sheet.js (shared with the season PDF) */
   document.getElementById("export-pdf").addEventListener("click", async () => {
     document.getElementById("print-sheet").innerHTML = PdfSheet.raceHTML({
-      race, season, bySession, notesBlocks,
+      race, season, bySession, notesBlocks, roundLabel,
       highlightRows: highlightsRes.rows, posterRows: postersRes.rows, circuitRows: circuitsRes.rows,
     });
     await PdfSheet.printSheet(`${season} R${String(race.Round).padStart(2, "0")} ${race["Race Name"] || "Race"}`);

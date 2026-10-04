@@ -925,3 +925,75 @@ button { font-family: inherit; cursor: pointer; }
 .admin-table tr.is-dirty td { background: #FFF8E1; }
 .admin-table tr.is-deleted td { opacity: .45; text-decoration: line-through; background: #FDEDEC; }
 .admin-table tr.is-deleted td:last-child { text-decoration: none; opacity: 1; }
+
+/* =========================================================================
+   COMPACT CALENDAR (4 across) + NEXT UP NOTE
+   ========================================================================= */
+.race-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.race-list > .empty-state { grid-column: 1 / -1; }
+@media (max-width: 1000px) { .race-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px)  { .race-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 400px)  { .race-list { grid-template-columns: 1fr; } }
+
+.race-card {
+  position: relative; display: block; padding: 12px 14px 12px; min-height: 84px;
+  background: #FBF8EF; border: 1px solid #E8E2D0; border-radius: 3px; color: var(--text);
+  box-shadow: 0 1px 3px rgba(60,50,20,.16); transition: transform .12s, box-shadow .12s;
+}
+.race-card:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(60,50,20,.2); }
+.race-card__round { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; color: var(--text-faint); }
+.race-card__name { font-family: var(--font-display, "Big Shoulders", sans-serif); font-weight: 700; font-size: 17px;
+                   line-height: 1.1; margin: 6px 0 4px; text-transform: none; }
+.race-card__circuit { font-size: 11.5px; font-style: italic; color: var(--text-dim); line-height: 1.3; }
+.race-card__sprint { position: absolute; top: 8px; right: 8px; background: var(--accent); color: #fff;
+                     font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .08em; padding: 2px 5px; }
+.race-card.is-cancelled .race-card__name, .race-card.is-cancelled .race-card__circuit { opacity: .4; }
+.race-card__stamp { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-10deg);
+                    border: 2px solid var(--accent); color: var(--accent); padding: 1px 8px; border-radius: 3px;
+                    font-family: var(--font-mono); font-weight: 700; font-size: 13px; letter-spacing: .1em; opacity: .85;
+                    background: rgba(251,248,239,.35); }
+
+.next-up { display: flex; justify-content: center; margin: 4px 0 26px; }
+.next-up:empty { display: none; }
+.next-up__card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: #FBF8EF; padding: 22px 36px 18px; min-width: min(300px, 90%); text-align: center;
+  transform: rotate(-1.2deg); box-shadow: 0 6px 16px rgba(60,50,20,.22); color: var(--text);
+}
+.next-up__tape { position: absolute; top: -9px; width: 44px; height: 18px; background: rgba(205,170,100,.75); }
+.next-up__tape--l { left: 22px; transform: rotate(-5deg); }
+.next-up__tape--r { right: 22px; transform: rotate(6deg); }
+.next-up__label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .18em; color: var(--accent); }
+.next-up__name { font-family: var(--font-display, "Big Shoulders", sans-serif); font-weight: 800; font-size: 26px; line-height: 1.05; }
+.next-up__circuit { font-style: italic; font-size: 13px; color: var(--text-dim); }
+.next-up__line { margin-top: 8px; font-style: italic; font-size: 13px; color: var(--accent); }
+
+/* =========================================================================
+   DRIVER PHOTOS: crop from the top (heads), names on one line
+   ========================================================================= */
+.driver-chip { width: 108px; }
+.driver-chip .img-slot { width: 108px; height: 108px; }
+.driver-chip .img-slot img, .driver-card .img-slot img { object-position: top center; }
+.driver-chip__name { white-space: nowrap; overflow: hidden; font-size: 12.5px; }
+
+/* =========================================================================
+   POSTERS: a bit smaller, same 3:4 proportion
+   ========================================================================= */
+.poster-wall { max-width: 760px; }
+
+/* Results editor: driver suggestions + session photo */
+.em-suggest { position: fixed; z-index: 60; margin: 0; padding: 4px; list-style: none; background: var(--surface);
+              border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 22px rgba(0,0,0,.14); }
+.em-suggest li { display: flex; align-items: center; gap: 8px; padding: 7px 9px; cursor: pointer; font-size: 13px; border-radius: 4px; }
+.em-suggest li.is-hi, .em-suggest li:hover { background: #F0EEE8; }
+.em-suggest li b { font-family: var(--font-mono); font-size: 12px; min-width: 34px; }
+.em-suggest li span { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); min-width: 28px; }
+.em-suggest li i { width: 8px; height: 8px; border-radius: 50%; margin-left: auto; }
+.em-suggest li em { font-style: normal; font-size: 11px; color: var(--text-dim); }
+.em-graphic { display: flex; gap: 16px; align-items: flex-start; margin: 18px 0 4px; padding-top: 16px;
+              border-top: 1px solid var(--line); flex-wrap: wrap; }
+.em-graphic__thumb { width: 84px; aspect-ratio: 4 / 5; background: #ECEAE4; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.em-graphic__thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.em-graphic__thumb img:not([src]) { visibility: hidden; }
+.em-graphic__fields { flex: 1 1 320px; max-width: 560px; }
+.em-label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }

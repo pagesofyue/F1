@@ -61,7 +61,7 @@ const PdfSheet = (function () {
     let html = `
       <header class="ps-head">
         <div>
-          <div class="ps-kicker">ROUND ${String(race.Round).padStart(2, "0")} — ${esc(season)}</div>
+          <div class="ps-kicker">${c.roundLabel === null ? "CANCELLED" : "ROUND " + String(c.roundLabel ?? race.Round).padStart(2, "0")} — ${esc(season)}</div>
           <h1>${esc(race["Race Name"] || "Race")}</h1>
           <p>${esc(race.Country || "")} · ${esc(race.Circuit || "")}<br>${esc(Utils.formatDateRange(race["Start Date"], race["End Date"]))}</p>
         </div>
@@ -127,5 +127,5 @@ const PdfSheet = (function () {
     setTimeout(() => { document.title = prev; }, 500);
   }
 
-  return { esc, raceHTML, printSheet };
+  return { esc, raceHTML, printSheet, SESSION_GRAPHIC };
 })();
