@@ -112,6 +112,15 @@ const Utils = (() => {
     return `${md(start)}–${md(end)}`;
   }
 
+  // Classification order: finishers by number, then DNF, DSQ, DNS
+  const STATUS_RANK = { DNF: 1000, DSQ: 1001, DNS: 1002 };
+  function posRank(pos) {
+    const t = String(pos ?? "").trim().toUpperCase();
+    if (t !== "" && !isNaN(Number(t))) return Number(t);
+    return STATUS_RANK[t] ?? 2000;
+  }
+  const isStatusPos = (pos) => { const t = String(pos ?? "").trim(); return t !== "" && isNaN(Number(t)); };
+
   const isCancelled = (race) => String(race.Status || "").trim().toLowerCase() === "cancelled";
 
   // Round numbers as shown on the site: cancelled races get no number and the rest close the gap.
@@ -263,7 +272,7 @@ const Utils = (() => {
   });
 
   return {
-    fetchCSV, loadTab, fetchDoc, normalizeImageUrl, parseDate, isCancelled, roundLabels, isSprintWeekend, SPRINT_SESSIONS, SPRINT_CATEGORIES, slugify, initials, formatDateRange, teamColor, groupBy,
+    fetchCSV, loadTab, fetchDoc, posRank, isStatusPos, normalizeImageUrl, parseDate, isCancelled, roundLabels, isSprintWeekend, SPRINT_SESSIONS, SPRINT_CATEGORIES, slugify, initials, formatDateRange, teamColor, groupBy,
     placeholderImage, getOverride, setOverride, clearOverride,
     resolveImageSrc, attachUploader, buildImageSlot,
   };

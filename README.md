@@ -245,6 +245,14 @@ waiting. Leaving the tab or page with unsaved changes asks first.
   it is saved to the Highlights tab (uploads go to a "Grid uploads" folder in your Google Drive).
   Optional: add a `Driver Code` column to Teams if a driver's code isn't the first 3 letters of the surname.
 
+## Classification statuses and the tally
+
+In the results editor, **Pos** accepts a number or **DNF** (did not finish), **DNS** (did not start)
+or **DSQ** (disqualified). They sort below the finishers (DNF, DSQ, DNS) and are worth 0 points.
+Standings are tallied from the Points column: Race 25-18-15-12-10-8-6-4-2-1, Sprint 8-7-6-5-4-3-2-1,
+0 for everyone else; practice and qualifying score nothing. Driver and constructor totals
+(and the standings Doc) update on every save.
+
 ## 3. Admin panel (edit everything from the site)
 
 `admin.html` is now **back-end setup only** — drivers (Teams), rounds (Races, incl. Sprint Weekend), Circuits, Posters and Highlights. Results and notes are edited on the race page. It lets you add/edit/delete rows in those tabs directly from

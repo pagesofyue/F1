@@ -997,3 +997,12 @@ button { font-family: inherit; cursor: pointer; }
 .em-graphic__thumb img:not([src]) { visibility: hidden; }
 .em-graphic__fields { flex: 1 1 320px; max-width: 560px; }
 .em-label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+
+/* Circuit map + posters: bigger and centred */
+.circuit-map { max-width: 600px; margin: 28px auto 0; text-align: center; }
+.circuit-map__label { font-size: 15px; color: var(--text-dim); margin-top: 12px; letter-spacing: .02em; }
+#circuit-map-wrap + #export-pdf { display: block; margin: 22px auto 0 !important; }
+.poster-wall { margin-left: auto; margin-right: auto; }
+
+/* Classification statuses */
+.results-table td.pos.is-status { color: var(--accent); font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; }

@@ -61,7 +61,7 @@
   const editorEl = document.getElementById("results-editor");
   let activeKey = null;
   let editorOpen = false;
-  const byPos = (a, b) => Number(a.Position) - Number(b.Position);
+  const byPos = (a, b) => Utils.posRank(a.Position) - Utils.posRank(b.Position);
   const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
   const SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
   const labelOf = (k) => CONFIG.SESSION_ORDER.find(s => s.key === k)?.label || k;
@@ -138,7 +138,7 @@
 
     body.innerHTML = [...rows].sort(byPos).map(r => `
       <tr>
-        <td class="pos">${esc(r.Position || "–")}</td>
+        <td class="pos${Utils.isStatusPos(r.Position) ? " is-status" : ""}">${esc(r.Position || "–")}</td>
         <td class="driver">${esc(r.Driver || "—")}</td>
         <td class="team"><span class="team-dot" style="background:${Utils.teamColor(r.Team)}"></span>${esc(r.Team || "—")}</td>
         <td class="points">${r.Points !== undefined && r.Points !== "" ? esc(r.Points) : "—"}</td>
@@ -194,7 +194,14 @@
     const key = activeKey;
     const drivers = rosterFor();
     const gfx = PdfSheet.SESSION_GRAPHIC[key];
-    const autoPts = (pos) => (key === "Race" ? RACE_PTS : key === "Sprint" ? SPRINT_PTS : [])[Number(pos) - 1] ?? "";
+    // Race / Sprint: points by position, 0 outside the points or for DNF / DNS / DSQ. Other sessions: none.
+    const autoPts = (pos) => {
+      const table = key === "Race" ? RACE_PTS : key === "Sprint" ? SPRINT_PTS : null;
+      if (!table) return "";
+      const t = String(pos ?? "").trim();
+      if (t === "") return "";
+      return isNaN(Number(t)) ? 0 : (table[Number(t) - 1] ?? 0);
+    };
     const currentGfx = highlightsRes.rows.find(r => r.Category === gfx.cat &&
       String(r.Round) === String(race.Round) && String(r.Season) === String(season))?.["Image URL"] || "";
 
@@ -211,9 +218,10 @@
     document.getElementById("results-empty").style.display = "none";
 
     editorEl.innerHTML = `
+      <datalist id="em-status"><option value="DNF">Did not finish</option><option value="DNS">Did not start</option><option value="DSQ">Disqualified</option></datalist>
       <datalist id="em-teams">${CONFIG.TEAM_ORDER.map(t => `<option value="${PdfSheet.esc(t)}"></option>`).join("")}</datalist>
       <h3 class="admin-subhead" style="margin-top:0">Editing ${PdfSheet.esc(labelOf(key))}</h3>
-      <p class="section__note" style="margin:0 0 10px">Type a driver's name, number or code (LEC, 16…) and press Enter — team, number and points fill in by themselves.</p>
+      <p class="section__note" style="margin:0 0 10px">Type a driver's name, number or code (LEC, 16…) and press Enter — team, number and points fill in by themselves. For Pos you can type DNF, DNS or DSQ (worth 0 points).</p>
       <div style="overflow-x:auto"><table class="em-table">
         <thead><tr><th>Pos</th><th>No.</th><th>Driver</th><th>Team</th><th>Pts</th><th></th></tr></thead>
         <tbody id="em-body"></tbody>
@@ -284,7 +292,7 @@
     function addRow(r) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td><input class="admin-input em-pos" type="number" min="1"></td>
+        <td><input class="admin-input em-pos" list="em-status" placeholder="1, DNF…" autocomplete="off" maxlength="4"></td>
         <td><input class="admin-input em-no" inputmode="numeric"></td>
         <td><input class="admin-input em-driver" placeholder="Name, number or code" autocomplete="off"></td>
         <td><input class="admin-input em-team" list="em-teams" placeholder="Team"></td>
@@ -297,6 +305,7 @@
       if (r.pts !== "" && String(r.pts) !== String(autoPts(r.pos))) q(".em-pts").dataset.manual = "1";
 
       q(".em-pos").addEventListener("input", () => {
+        q(".em-pos").value = q(".em-pos").value.toUpperCase();
         if (!q(".em-pts").dataset.manual) q(".em-pts").value = autoPts(q(".em-pos").value);
       });
       q(".em-pts").addEventListener("input", () => { q(".em-pts").dataset.manual = "1"; });
@@ -347,7 +356,7 @@
     document.getElementById("em-save").addEventListener("click", async () => {
       const out = [...body.children].map(tr => {
         const v = (c) => tr.querySelector(c).value.trim();
-        return { Position: v(".em-pos") === "" ? "" : Number(v(".em-pos")), "Driver No.": v(".em-no"),
+        return { Position: v(".em-pos") === "" ? "" : (isNaN(Number(v(".em-pos"))) ? v(".em-pos").toUpperCase() : Number(v(".em-pos"))), "Driver No.": v(".em-no"),
                  Driver: v(".em-driver"), Team: v(".em-team"), Points: v(".em-pts") === "" ? "" : Number(v(".em-pts")) };
       }).filter(r => r.Driver);
 

@@ -17,7 +17,7 @@ const PdfSheet = (function () {
     "Race": { cat: "Race Winner", cap: "Race Winner" },
   };
 
-  const byPos = (rows) => [...rows].sort((a, b) => Number(a.Position) - Number(b.Position));
+  const byPos = (rows) => [...rows].sort((a, b) => Utils.posRank(a.Position) - Utils.posRank(b.Position));
 
   function graphicFor(c, sessionKey, rows) {
     const g = SESSION_GRAPHIC[sessionKey];
