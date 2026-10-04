@@ -918,3 +918,10 @@ button { font-family: inherit; cursor: pointer; }
 .em-table .em-pos, .em-table .em-no, .em-table .em-pts { width: 70px; }
 .em-actions { display: flex; gap: 10px; align-items: center; margin: 14px 0 8px; flex-wrap: wrap; }
 @media print { .em-modal, .em-toggle { display: none !important; } }
+
+/* Admin: one save per page */
+.admin-bar { position: sticky; bottom: 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+             background: var(--bg, #F7F6F2); border-top: 1px solid var(--line); padding: 12px 0; margin-top: 8px; }
+.admin-table tr.is-dirty td { background: #FFF8E1; }
+.admin-table tr.is-deleted td { opacity: .45; text-decoration: line-through; background: #FDEDEC; }
+.admin-table tr.is-deleted td:last-child { text-decoration: none; opacity: 1; }

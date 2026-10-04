@@ -19,7 +19,7 @@
 
 const CONFIG = {
   // Shown in the page footer — lets you confirm which version of the files is live.
-  BUILD: "2026-10-04-r4",
+  BUILD: "2026-10-04-r5",
   SEASON: 2026,
 
   SHEET_URLS: {

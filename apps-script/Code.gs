@@ -64,6 +64,7 @@ function doPost(e) {
       return jsonOut_({ ok: false, error: 'Incorrect password.' });
     }
     if (payload.action === 'verify') return jsonOut_({ ok: true });
+    if (payload.action === 'saveBatch') return jsonOut_(saveBatch_(payload));
     if (payload.action === 'saveResults') return jsonOut_(saveResults_(payload));
     if (payload.action === 'saveNote') return jsonOut_(saveNote_(payload.round, payload.title, payload.text));
     if (!payload.tab) return jsonOut_({ ok: false, error: 'Missing "tab" in request.' });
@@ -314,6 +315,39 @@ function readNotesDoc_() {
     else current.blocks.push({ type: isItem ? 'li' : 'p', text: text });
   }
   return { ok: true, url: doc.getUrl(), notes: notes };
+}
+
+/** Saves a whole admin page at once: edited rows, new rows and deleted rows in one request. */
+function saveBatch_(payload) {
+  const updates = Array.isArray(payload.updates) ? payload.updates : [];
+  const adds = Array.isArray(payload.adds) ? payload.adds : [];
+  const deletes = (Array.isArray(payload.deletes) ? payload.deletes : []).map(Number).filter(n => n >= 2);
+  if (updates.length + adds.length + deletes.length > 300) return { ok: false, error: 'Too many changes in one save.' };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = getSheet_(payload.tab);
+    const headers = getHeaders_(sheet);
+    const toRow = (data) => resolveRowImages_(headers,
+      headers.map(h => (data && data[h] !== undefined) ? data[h] : ''));
+
+    // 1) edits (row numbers are from before any deletes), 2) deletes bottom-up, 3) new rows at the end
+    updates.forEach(u => {
+      const n = Number(u.row);
+      if (n >= 2) sheet.getRange(n, 1, 1, headers.length).setValues([toRow(u.data)]);
+    });
+    deletes.sort((a, b) => b - a).forEach(n => sheet.deleteRow(n));
+    if (adds.length) {
+      const rows = adds.map(toRow);
+      sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+    }
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  if (payload.tab === RESULTS_TAB) refreshStandingsDoc_();
+  return { ok: true, updated: updates.length, added: adds.length, deleted: deletes.length };
 }
 
 /** Adds a header cell if the tab doesn't have that column yet (blank values). */

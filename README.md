@@ -225,6 +225,13 @@ replaces the cell with the direct image link (the original is kept as a cell not
 - If a site blocks the lookup (Instagram, some Pinterest pins), the cell gets a note saying so —
   then right-click the image → **Copy image address** and paste that instead.
 
+## Admin saves once per page
+
+Each admin tab is one editable grid. Change as many cells as you want, add rows with **+ Add row**,
+mark rows with **Delete** (press **Undo** to take it back), then press **Save changes** once — the
+whole page is written in one go. Edited rows turn yellow, and the button shows how many changes are
+waiting. Leaving the tab or page with unsaved changes asks first.
+
 ## 3. Admin panel (edit everything from the site)
 
 `admin.html` is now **back-end setup only** — drivers (Teams), rounds (Races, incl. Sprint Weekend), Circuits, Posters and Highlights. Results and notes are edited on the race page. It lets you add/edit/delete rows in those tabs directly from

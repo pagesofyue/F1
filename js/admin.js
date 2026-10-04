@@ -106,10 +106,15 @@
 
   document.getElementById("admin-tabs").addEventListener("click", (e) => {
     const btn = e.target.closest(".admin-tab");
-    if (!btn) return;
+    if (!btn || btn.dataset.tab === activeTabKey) return;
+    if (countChanges() > 0 && !confirm("You have unsaved changes on this page. Leave without saving?")) return;
     [...document.querySelectorAll(".admin-tab")].forEach(b => b.classList.toggle("is-active", b === btn));
     activeTabKey = btn.dataset.tab;
     loadTab(activeTabKey);
+  });
+
+  window.addEventListener("beforeunload", (e) => {
+    if (countChanges() > 0) { e.preventDefault(); e.returnValue = ""; }
   });
 
   /* ---------- data loading ---------- */
@@ -125,10 +130,44 @@
       currentHeaders = json.headers;
       currentRows = json.rows;
       renderTable();
-      renderAddForm();
     } catch (err) {
       wrap.innerHTML = `<div class="empty-state">Couldn't load this tab: ${escapeHtml(String(err.message || err))}</div>`;
     }
+  }
+
+  /* ---------- the page grid: edit anything, then ONE save for the whole page ---------- */
+
+  const readRow = (tr) => {
+    const d = {};
+    tr.querySelectorAll(".admin-input").forEach(i => { d[i.dataset.field] = i.value; });
+    return d;
+  };
+
+  function buildRow(row) {
+    const tr = document.createElement("tr");
+    if (row) tr.dataset.row = row._row; else tr.dataset.new = "1";
+    currentHeaders.forEach(h => {
+      const td = document.createElement("td");
+      td.appendChild(createFieldElement(h, row ? (row[h] ?? "") : "", tr));
+      tr.appendChild(td);
+    });
+    tr.dataset.orig = JSON.stringify(readRow(tr));
+
+    const td = document.createElement("td");
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "btn btn--small btn--ghost";
+    rm.textContent = row ? "Delete" : "✕";
+    rm.addEventListener("click", () => {
+      if (!row) tr.remove(); else {
+        tr.classList.toggle("is-deleted");
+        rm.textContent = tr.classList.contains("is-deleted") ? "Undo" : "Delete";
+      }
+      refreshDirty();
+    });
+    td.appendChild(rm);
+    tr.appendChild(td);
+    return tr;
   }
 
   function renderTable() {
@@ -137,94 +176,78 @@
       wrap.innerHTML = `<div class="empty-state">No "${SHEET_NAMES[activeTabKey]}" tab found, or it has no header row yet.</div>`;
       return;
     }
-    if (currentRows.length === 0) {
-      wrap.innerHTML = `<div class="empty-state">No rows yet — add one below.</div>`;
-      return;
-    }
+    wrap.innerHTML = `
+      <table class="results-table admin-table">
+        <thead><tr>${currentHeaders.map(h => `<th>${escapeHtml(h)}</th>`).join("")}<th></th></tr></thead>
+        <tbody id="admin-body"></tbody>
+      </table>
+      <div class="admin-bar">
+        <button type="button" class="btn btn--ghost" id="admin-add-row">+ Add row</button>
+        <button type="button" class="btn btn--primary" id="admin-save" disabled>Save changes</button>
+        <span class="section__note" id="admin-dirty"></span>
+      </div>`;
+    const body = document.getElementById("admin-body");
+    currentRows.forEach(r => body.appendChild(buildRow(r)));
+    if (!currentRows.length) body.appendChild(buildRow(null));
 
-    const table = document.createElement("table");
-    table.className = "results-table admin-table";
-    table.innerHTML = `
-      <thead><tr>
-        ${currentHeaders.map(h => `<th>${escapeHtml(h)}</th>`).join("")}
-        <th></th>
-      </tr></thead>
-      <tbody></tbody>
-    `;
-    const tbody = table.querySelector("tbody");
-
-    currentRows.forEach(row => {
-      const tr = document.createElement("tr");
-      tr.dataset.row = row._row;
-
-      currentHeaders.forEach(h => {
-        const td = document.createElement("td");
-        td.appendChild(createFieldElement(h, row[h] ?? "", tr));
-        tr.appendChild(td);
-      });
-
-      const actionsTd = document.createElement("td");
-      actionsTd.style.whiteSpace = "nowrap";
-
-      const saveBtn = document.createElement("button");
-      saveBtn.type = "button";
-      saveBtn.className = "btn btn--small btn--primary";
-      saveBtn.textContent = "Save";
-      saveBtn.addEventListener("click", () => updateRow(tr));
-
-      const delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.className = "btn btn--small btn--danger";
-      delBtn.textContent = "Delete";
-      delBtn.addEventListener("click", () => deleteRow(tr));
-
-      actionsTd.appendChild(saveBtn);
-      actionsTd.appendChild(delBtn);
-      tr.appendChild(actionsTd);
-      tbody.appendChild(tr);
+    document.getElementById("admin-add-row").addEventListener("click", () => {
+      const tr = buildRow(null);
+      body.appendChild(tr);
+      tr.querySelector(".admin-input")?.focus();
+      refreshDirty();
     });
-
-    wrap.innerHTML = "";
-    wrap.appendChild(table);
+    document.getElementById("admin-save").addEventListener("click", savePage);
+    wrap.addEventListener("input", refreshDirty);
+    wrap.addEventListener("change", refreshDirty);
+    refreshDirty();
   }
 
-  function renderAddForm() {
-    const form = document.getElementById("admin-add-form");
-    form.innerHTML = "";
-    currentHeaders.forEach(h => {
-      const field = document.createElement("label");
-      field.className = "admin-field";
-      field.innerHTML = `<span>${escapeHtml(h)}</span>`;
-      field.appendChild(createFieldElement(h, "", form));
-      form.appendChild(field);
+  // What this page would send: edited rows, new rows (ignoring blank ones), deleted rows.
+  function collectChanges() {
+    const updates = [], adds = [], deletes = [];
+    document.querySelectorAll("#admin-body tr").forEach(tr => {
+      if (tr.dataset.new) {
+        const data = readRow(tr);
+        if (Object.values(data).some(v => String(v).trim() !== "")) adds.push(data);
+      } else if (tr.classList.contains("is-deleted")) {
+        deletes.push(Number(tr.dataset.row));
+      } else {
+        const data = readRow(tr);
+        if (JSON.stringify(data) !== tr.dataset.orig) updates.push({ row: Number(tr.dataset.row), data });
+      }
     });
-    const btn = document.createElement("button");
-    btn.type = "submit";
-    btn.className = "btn btn--primary";
-    btn.textContent = "Add row";
-    form.appendChild(btn);
+    return { updates, adds, deletes };
   }
 
-  document.getElementById("admin-add-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const data = {};
-    [...e.target.querySelectorAll(".admin-input")].forEach(input => {
-      data[input.dataset.field] = input.value;
-    });
-    await sendWrite({ action: "add", tab: SHEET_NAMES[activeTabKey], data });
-  });
-
-  async function updateRow(tr) {
-    const data = {};
-    [...tr.querySelectorAll(".admin-input")].forEach(input => {
-      data[input.dataset.field] = input.value;
-    });
-    await sendWrite({ action: "update", tab: SHEET_NAMES[activeTabKey], row: tr.dataset.row, data });
+  function countChanges() {
+    if (!document.getElementById("admin-body")) return 0;
+    const c = collectChanges();
+    return c.updates.length + c.adds.length + c.deletes.length;
   }
 
-  async function deleteRow(tr) {
-    if (!confirm("Delete this row? This can't be undone.")) return;
-    await sendWrite({ action: "delete", tab: SHEET_NAMES[activeTabKey], row: tr.dataset.row });
+  function refreshDirty() {
+    const save = document.getElementById("admin-save");
+    if (!save) return;
+    document.querySelectorAll("#admin-body tr").forEach(tr => {
+      const dirty = tr.dataset.new ? Object.values(readRow(tr)).some(v => String(v).trim() !== "")
+        : JSON.stringify(readRow(tr)) !== tr.dataset.orig;
+      tr.classList.toggle("is-dirty", dirty && !tr.classList.contains("is-deleted"));
+    });
+    const c = collectChanges(), n = c.updates.length + c.adds.length + c.deletes.length;
+    save.disabled = n === 0;
+    save.textContent = n ? `Save changes (${n})` : "Save changes";
+    document.getElementById("admin-dirty").textContent = n
+      ? `${c.updates.length} edited · ${c.adds.length} new · ${c.deletes.length} to delete — not saved yet` : "";
+  }
+
+  async function savePage() {
+    const c = collectChanges();
+    if (!c.updates.length && !c.adds.length && !c.deletes.length) return;
+    if (c.deletes.length && !confirm(`Delete ${c.deletes.length} row(s)? This can't be undone.`)) return;
+    const btn = document.getElementById("admin-save");
+    btn.disabled = true; btn.textContent = "Saving…";
+    const ok = await sendWrite({ action: "saveBatch", tab: SHEET_NAMES[activeTabKey], ...c });
+    if (!ok) refreshDirty();
   }
 
   async function sendWrite(payload) {
@@ -239,13 +262,15 @@
       const json = await res.json();
       if (!json.ok) {
         toast(json.error || "Something went wrong.", true);
-        return;
+        return false;
       }
-      toast(payload.action === "add" ? "Row added." : payload.action === "update" ? "Saved." : "Deleted.");
+      toast(`Page saved — ${json.updated} edited, ${json.added} added, ${json.deleted} deleted.`);
       if (activeTabKey === "teams") await loadRoster(); // keep dropdowns elsewhere in sync
-      loadTab(activeTabKey);
+      await loadTab(activeTabKey);
+      return true;
     } catch (err) {
       toast("Network error — check the Apps Script URL and that it's deployed.", true);
+      return false;
     }
   }
 
@@ -364,7 +389,7 @@
 
   function setSiblingValue(root, fieldName, value) {
     const el = root.querySelector(`[data-field="${CSS.escape(fieldName)}"]`);
-    if (el) el.value = value;
+    if (el) { el.value = value; refreshDirty(); }
   }
 
   function fieldHint(header) {
