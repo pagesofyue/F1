@@ -210,6 +210,21 @@ blank, the site guesses from whether any sprint results exist.
 
 After changing `Code.gs`, redeploy (Deploy → Manage deployments → ✎ → New version → Deploy).
 
+## Pasting image links (Pinterest, Imgur, Drive…)
+
+In any image column (Poster URL, Image URL, Circuit Map URL, Driver Photo URL) you can paste a
+normal **page link** — e.g. a Pinterest pin or pin.it link. The Apps Script finds the picture and
+replaces the cell with the direct image link (the original is kept as a cell note).
+
+- **Set up once:** in Apps Script run **`installTriggers`** and accept the permissions (including
+  "connect to an external service"), then redeploy. After that, pasting into the sheet converts it.
+- Links added through `admin.html` are converted automatically on save.
+- Already have page links in the sheet? Use the sheet menu **Grid → Convert all image links**.
+- Google Drive links work if the file is shared "Anyone with the link"; Dropbox and Imgur page
+  links are tidied automatically even without the script.
+- If a site blocks the lookup (Instagram, some Pinterest pins), the cell gets a note saying so —
+  then right-click the image → **Copy image address** and paste that instead.
+
 ## 3. Admin panel (edit everything from the site)
 
 `admin.html` is now **back-end setup only** — drivers (Teams), rounds (Races, incl. Sprint Weekend), Circuits, Posters and Highlights. Results and notes are edited on the race page. It lets you add/edit/delete rows in those tabs directly from
@@ -244,7 +259,7 @@ After step 5 above is working (the Web app URL is in `config.js`):
 1. In Apps Script, select **`setupDocs`** and click **Run**. Google will ask for permission to
    manage Docs — allow it. This creates two Docs and fills the notes Doc with a heading per round
    from your Races tab. Open **View → Logs** (or Execution log) for both links.
-2. *(Optional)* Run **`installStandingsTrigger`** once so typing directly in the Results tab also
+2. *(Optional)* Run **`installTriggers`** once so typing directly in the Results tab also
    refreshes the standings Doc. Edits made through `admin.html` refresh it automatically.
 3. **Redeploy**: Deploy → Manage deployments → ✎ → Version: New version → Deploy.
 4. The Docs are private to your Google account. The website reads them through the Apps Script, so
