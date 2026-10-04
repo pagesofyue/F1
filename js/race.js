@@ -1,18 +1,20 @@
 (async function () {
   let notesBlocks = []; // filled by renderNotes, reused by the PDF export
+  let notesEditing = false;
   document.getElementById("season-tag").textContent = CONFIG.SEASON;
 
   const params = new URLSearchParams(location.search);
   const round = params.get("round");
   const season = params.get("season") || CONFIG.SEASON;
 
-  const [racesRes, resultsRes, postersRes, highlightsRes, notesDoc, circuitsRes] = await Promise.all([
+  const [racesRes, resultsRes, postersRes, highlightsRes, notesDoc, circuitsRes, teamsRes] = await Promise.all([
     Utils.loadTab("races", PLACEHOLDER_RACES),
     Utils.loadTab("results", PLACEHOLDER_RESULTS),
     Utils.loadTab("posters", []), // no placeholder rows — falls back to blank tiles per team
     Utils.loadTab("highlights", []),
     Utils.fetchDoc("notes"),
     Utils.loadTab("circuits", []),
+    Utils.loadTab("teams", []),
   ]);
 
   const race = racesRes.rows.find(r => String(r.Round) === String(round) && String(r.Season) === String(season));
@@ -32,6 +34,14 @@
   document.getElementById("race-status").textContent = race.Status || "—";
   document.title = `${race["Race Name"] || "Race"} — Grid`;
 
+  let bySession = {};
+  const rebuildSessions = () => {
+    bySession = Utils.groupBy(resultsRes.rows.filter(
+      r => String(r.Round) === String(race.Round) && String(r.Season) === String(season)), "Session");
+  };
+  rebuildSessions();
+  const sprintOn = () => Utils.isSprintWeekend(race, Object.keys(bySession));
+
   renderPosters(race, postersRes.rows, season);
   renderCircuitMap(race, circuitsRes.rows);
   renderHighlights(race, highlightsRes.rows, season);
@@ -42,69 +52,196 @@
     ? `<span class="data-note">⚠ placeholder data — add a "Results" tab, see README</span>`
     : "";
 
-  const raceResults = resultsRes.rows.filter(
-    r => String(r.Round) === String(race.Round) && String(r.Season) === String(season)
-  );
-
-  const bySession = Utils.groupBy(raceResults, "Session");
-
+  /* ---------- session tabs, results table, inline results editor ---------- */
   const tabsEl = document.getElementById("session-tabs");
-  tabsEl.innerHTML = "";
+  const toolsEl = document.getElementById("results-tools");
+  const editorEl = document.getElementById("results-editor");
   let activeKey = null;
+  let editorOpen = false;
+  const byPos = (a, b) => Number(a.Position) - Number(b.Position);
+  const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+  const SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
+  const labelOf = (k) => CONFIG.SESSION_ORDER.find(s => s.key === k)?.label || k;
 
-  CONFIG.SESSION_ORDER.forEach(({ key, label }) => {
-    const hasData = !!bySession[key]?.length;
-    const btn = document.createElement("button");
-    btn.className = "session-tab";
-    btn.textContent = label;
-    btn.disabled = !hasData;
-    btn.addEventListener("click", () => setActive(key));
-    tabsEl.appendChild(btn);
-    if (hasData && activeKey === null) activeKey = key;
-  });
+  // Sprint Qualifying / Sprint only exist on sprint weekends
+  const sessionList = () => CONFIG.SESSION_ORDER.filter(s => sprintOn() || !Utils.SPRINT_SESSIONS.includes(s.key));
 
-  function setActive(key) {
-    activeKey = key;
-    [...tabsEl.children].forEach((btn, i) => {
-      btn.classList.toggle("is-active", CONFIG.SESSION_ORDER[i].key === key);
+  function buildTabs() {
+    const em = EditMode.isOn();
+    const list = sessionList();
+    if (!list.some(s => s.key === activeKey)) activeKey = null;
+    tabsEl.innerHTML = "";
+    list.forEach(({ key, label }) => {
+      const hasData = !!bySession[key]?.length;
+      const btn = document.createElement("button");
+      btn.className = "session-tab";
+      btn.dataset.key = key;
+      btn.textContent = label;
+      btn.disabled = !hasData && !em; // in edit mode every session can be opened to add results
+      btn.addEventListener("click", () => setActive(key));
+      tabsEl.appendChild(btn);
+      if (activeKey === null && hasData) activeKey = key;
     });
-    renderTable(bySession[key] || []);
-  }
-
-  if (activeKey) {
-    setActive(activeKey);
-  } else {
+    if (activeKey === null && em && list.length) activeKey = list[list.length - 1].key;
+    if (activeKey) return setActive(activeKey);
+    closeEditor();
     document.getElementById("results-table").style.display = "none";
     const empty = document.getElementById("results-empty");
     empty.style.display = "block";
     empty.textContent = "No session results yet for this race.";
   }
 
+  function setActive(key) {
+    activeKey = key;
+    closeEditor();
+    [...tabsEl.children].forEach(btn => btn.classList.toggle("is-active", btn.dataset.key === key));
+    renderTable(bySession[key] || []);
+  }
+
+  function paintTools() {
+    toolsEl.innerHTML = "";
+    if (!EditMode.isOn() || editorOpen || !activeKey) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn--ghost btn--small";
+    btn.textContent = `✎ Edit ${labelOf(activeKey)} results`;
+    btn.addEventListener("click", openEditor);
+    toolsEl.appendChild(btn);
+  }
+
+  function closeEditor() {
+    editorOpen = false;
+    editorEl.innerHTML = "";
+    paintTools();
+  }
+
   function renderTable(rows) {
     const table = document.getElementById("results-table");
     const empty = document.getElementById("results-empty");
     const body = document.getElementById("results-body");
+    const esc = PdfSheet.esc;
 
     if (!rows.length) {
       table.style.display = "none";
       empty.style.display = "block";
-      empty.textContent = "No results recorded for this session yet.";
+      empty.textContent = EditMode.isOn()
+        ? "No results for this session yet — press “Edit” to add them."
+        : "No results recorded for this session yet.";
       return;
     }
 
     table.style.display = "table";
     empty.style.display = "none";
 
-    const sorted = [...rows].sort((a, b) => Number(a.Position) - Number(b.Position));
-    body.innerHTML = sorted.map(r => `
+    body.innerHTML = [...rows].sort(byPos).map(r => `
       <tr>
-        <td class="pos">${r.Position || "–"}</td>
-        <td class="driver">${r.Driver || "—"}</td>
-        <td class="team"><span class="team-dot" style="background:${Utils.teamColor(r.Team)}"></span>${r.Team || "—"}</td>
-        <td class="points">${r.Points !== undefined && r.Points !== "" ? r.Points : "—"}</td>
+        <td class="pos">${esc(r.Position || "–")}</td>
+        <td class="driver">${esc(r.Driver || "—")}</td>
+        <td class="team"><span class="team-dot" style="background:${Utils.teamColor(r.Team)}"></span>${esc(r.Team || "—")}</td>
+        <td class="points">${r.Points !== undefined && r.Points !== "" ? esc(r.Points) : "—"}</td>
       </tr>
     `).join("");
   }
+
+  function rosterFor() {
+    const rows = teamsRes.rows.filter(r => String(r["Season"]) === String(season));
+    const map = new Map();
+    (rows.length ? rows : teamsRes.rows).forEach(r => {
+      if (r["Driver"]) map.set(r["Driver"], { no: r["Driver No."] || "", team: r["Team Name"] || "" });
+    });
+    return [...map.entries()].map(([name, v]) => ({ name, ...v }));
+  }
+
+  function openEditor() {
+    const key = activeKey;
+    const drivers = rosterFor();
+    const ptsFor = (pos) => (key === "Race" ? RACE_PTS : key === "Sprint" ? SPRINT_PTS : [])[pos - 1] ?? "";
+    let rows = [...(bySession[key] || [])].sort(byPos).map(r => ({
+      pos: r.Position, no: r["Driver No."] ?? "", driver: r.Driver ?? "", team: r.Team ?? "", pts: r.Points ?? "" }));
+    if (!rows.length) {
+      rows = Array.from({ length: Math.max(drivers.length, 20) }, (_, i) =>
+        ({ pos: i + 1, no: "", driver: "", team: "", pts: ptsFor(i + 1) }));
+    }
+
+    editorOpen = true;
+    paintTools();
+    document.getElementById("results-table").style.display = "none";
+    document.getElementById("results-empty").style.display = "none";
+
+    editorEl.innerHTML = `
+      <datalist id="em-drivers">${drivers.map(d => `<option value="${PdfSheet.esc(d.name)}"></option>`).join("")}</datalist>
+      <datalist id="em-teams">${CONFIG.TEAM_ORDER.map(t => `<option value="${PdfSheet.esc(t)}"></option>`).join("")}</datalist>
+      <h3 class="admin-subhead" style="margin-top:0">Editing ${PdfSheet.esc(labelOf(key))}</h3>
+      <div style="overflow-x:auto"><table class="em-table">
+        <thead><tr><th>Pos</th><th>No.</th><th>Driver</th><th>Team</th><th>Pts</th><th></th></tr></thead>
+        <tbody id="em-body"></tbody>
+      </table></div>
+      <div class="em-actions">
+        <button type="button" class="btn btn--ghost btn--small" id="em-add">+ Add row</button>
+        <button type="button" class="btn btn--primary" id="em-save">Save results</button>
+        <button type="button" class="btn btn--ghost" id="em-cancel">Cancel</button>
+        <span class="section__note" id="em-msg"></span>
+      </div>
+      <p class="section__note">Type or pick a driver — team and number fill in automatically. Rows with no driver are ignored.</p>`;
+
+    const body = document.getElementById("em-body");
+    const msg = document.getElementById("em-msg");
+
+    function addRow(r) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input class="admin-input em-pos" type="number" min="1"></td>
+        <td><input class="admin-input em-no" inputmode="numeric"></td>
+        <td><input class="admin-input em-driver" list="em-drivers" placeholder="Driver"></td>
+        <td><input class="admin-input em-team" list="em-teams" placeholder="Team"></td>
+        <td><input class="admin-input em-pts" type="number" step="any"></td>
+        <td><button type="button" class="btn btn--ghost btn--small" aria-label="Remove row">✕</button></td>`;
+      const q = (c) => tr.querySelector(c);
+      q(".em-pos").value = r.pos; q(".em-no").value = r.no;
+      q(".em-driver").value = r.driver; q(".em-team").value = r.team; q(".em-pts").value = r.pts;
+      q(".em-driver").addEventListener("input", () => {
+        const d = drivers.find(x => x.name.toLowerCase() === q(".em-driver").value.trim().toLowerCase());
+        if (d) { q(".em-team").value = d.team; q(".em-no").value = d.no; }
+      });
+      tr.querySelector("button").addEventListener("click", () => tr.remove());
+      body.appendChild(tr);
+    }
+    rows.forEach(addRow);
+
+    document.getElementById("em-add").addEventListener("click", () => {
+      const max = Math.max(0, ...[...body.querySelectorAll(".em-pos")].map(i => Number(i.value) || 0));
+      addRow({ pos: max + 1, no: "", driver: "", team: "", pts: ptsFor(max + 1) });
+    });
+    document.getElementById("em-cancel").addEventListener("click", () => { closeEditor(); setActive(key); });
+
+    document.getElementById("em-save").addEventListener("click", async () => {
+      const out = [...body.children].map(tr => {
+        const v = (c) => tr.querySelector(c).value.trim();
+        return { Position: v(".em-pos") === "" ? "" : Number(v(".em-pos")), "Driver No.": v(".em-no"),
+                 Driver: v(".em-driver"), Team: v(".em-team"), Points: v(".em-pts") === "" ? "" : Number(v(".em-pts")) };
+      }).filter(r => r.Driver);
+
+      msg.textContent = "Saving…";
+      try {
+        const json = await EditMode.post({ action: "saveResults", season, round: race.Round, session: key, rows: out });
+        if (!json.ok) { msg.textContent = json.error || "Couldn't save."; return; }
+      } catch (err) {
+        msg.textContent = "Network error — check the Apps Script URL and that it's deployed.";
+        return;
+      }
+      if (resultsRes.isPlaceholder) { resultsRes.rows = []; resultsRes.isPlaceholder = false; resultsNote.innerHTML = ""; }
+      resultsRes.rows = resultsRes.rows.filter(r => !(String(r.Round) === String(race.Round) &&
+        String(r.Season) === String(season) && r.Session === key));
+      out.forEach(r => resultsRes.rows.push({ Season: season, Round: race.Round, Session: key, ...r }));
+      rebuildSessions();
+      activeKey = key;
+      buildTabs();
+    });
+  }
+
+  buildTabs();
+  syncNotesUI();
+  EditMode.onChange(() => { buildTabs(); syncNotesUI(); });
 
   function renderPosters(race, posterRows, season) {
     const wall = document.getElementById("poster-wall");
@@ -164,13 +301,19 @@
 
     const figure = document.createElement("figure");
     figure.className = "circuit-map";
-    figure.appendChild(Utils.buildImageSlot({
+    const slot = Utils.buildImageSlot({
       key: `circuit:${Utils.slugify(race.Circuit)}:map`,
       sheetUrl: match?.["Circuit Map URL"],
       label: race.Circuit,
       alt: `${race.Circuit} circuit map`,
-      opts: { w: 500, h: 310, bg: "#ECEAE4", fg: "#9A9E92" },
-    }));
+      opts: { w: 500, h: 310, bg: "none", fg: "#9A9E92" },
+    });
+    // inline + !important: transparent regardless of any other stylesheet
+    [slot, slot.querySelector("img")].forEach(el => {
+      el.style.setProperty("background", "transparent", "important");
+      el.style.setProperty("border", "0", "important");
+    });
+    figure.appendChild(slot);
     const label = document.createElement("figcaption");
     label.className = "circuit-map__label";
     label.textContent = race.Circuit;
@@ -191,7 +334,7 @@
     section.style.display = "block";
 
     grid.innerHTML = "";
-    CONFIG.HIGHLIGHT_CATEGORIES.forEach(category => {
+    CONFIG.HIGHLIGHT_CATEGORIES.filter(c => sprintOn() || !Utils.SPRINT_CATEGORIES.includes(c)).forEach(category => {
       const match = forThisRace.find(r => r.Category === category);
       const tile = document.createElement("div");
       tile.className = "highlight-tile";
@@ -211,23 +354,33 @@
   }
 
   function renderNotes(race, notesDoc) {
-    const section = document.getElementById("notes-section");
-    const block = document.getElementById("notes-block");
     const link = document.getElementById("notes-doc-link");
-    if (!notesDoc) return; // script not connected, or Doc not set up yet
-    if (link && notesDoc.url) { link.href = notesDoc.url; link.style.display = "inline"; }
+    if (link && notesDoc && notesDoc.url) { link.href = notesDoc.url; link.style.display = "inline"; }
+    const match = notesDoc && notesDoc.notes.find(n => Number(n.round) === Number(race.Round));
+    notesBlocks = match ? match.blocks : [];
+  }
 
-    const match = notesDoc.notes.find(n => Number(n.round) === Number(race.Round));
-    if (!match || !match.blocks.length) return;
-    notesBlocks = match.blocks;
-    section.style.display = "block";
+  // Section shows when there are notes, or while edit mode is on (so you can write the first ones).
+  function syncNotesUI() {
+    if (notesEditing) return;
+    const em = EditMode.isOn();
+    document.getElementById("notes-section").style.display = (notesBlocks.length || em) ? "block" : "none";
+    document.getElementById("notes-edit").style.display = em ? "inline-block" : "none";
+    paintNotes();
+  }
+
+  function paintNotes() {
+    const block = document.getElementById("notes-block");
     block.innerHTML = "";
-
+    if (!notesBlocks.length) {
+      block.innerHTML = EditMode.isOn() ? `<p class="data-note">No notes yet — press “Edit notes” to write some.</p>` : "";
+      return;
+    }
     const text = document.createElement("div");
     text.className = "notes-text";
     let list = null;
 
-    match.blocks.forEach(b => {
+    notesBlocks.forEach(b => {
       if (b.type === "img") {
         const figure = document.createElement("figure");
         figure.className = "notes-image";
@@ -253,137 +406,60 @@
       p.textContent = b.text;
       text.appendChild(p);
     });
-
     block.appendChild(text);
   }
 
-  /* =====================================================================
-     PDF EXPORT
-     Builds a print-only layout (#print-sheet) and opens the browser's print
-     dialog — choose "Save as PDF". Layout:
-       • header + circuit map
-       • FP1 / FP2 / FP3 .......... 3 columns (graphic on top, results below)
-       • Sprint Quali, Sprint, Qualifying, Race ... 2 columns
-         (left: pole sitter / winner graphic, right: results)
-       • race notes
-     Font: Special Elite. Sessions with no results are skipped.
-     ===================================================================== */
-  const esc = (v) => String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  /* ---- type notes right on the page (saved to the Google Doc via Apps Script) ---- */
+  const PW_KEY = "f1site:admin:password"; // same key admin.html uses, so you only log in once
+  const notesToText = (blocks) => blocks.map(b =>
+    b.type === "li" ? `- ${b.text}` : b.type === "img" ? `Image: ${b.url}` : b.text).join("\n");
+  const textToNotes = (t) => t.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => {
+    const img = l.match(/^image:\s*(https?:\/\/\S+)$/i), li = l.match(/^[-•*]\s+(.*)$/);
+    return img ? { type: "img", url: img[1] } : li ? { type: "li", text: li[1] } : { type: "p", text: l };
+  });
 
-  // Results session -> Highlights category (image) + caption
-  const SESSION_GRAPHIC = {
-    "FP1": { cat: "FP1", cap: "Fastest" },
-    "FP2": { cat: "FP2", cap: "Fastest" },
-    "FP3": { cat: "FP3", cap: "Fastest" },
-    "Sprint Qualifying": { cat: "Sprint Qualifying", cap: "Sprint Pole" },
-    "Sprint": { cat: "Sprint Race", cap: "Sprint Winner" },
-    "Qualifying": { cat: "Pole Position", cap: "Pole Sitter" },
-    "Race": { cat: "Race Winner", cap: "Race Winner" },
-  };
+  document.getElementById("notes-edit").addEventListener("click", () => {
+    const block = document.getElementById("notes-block");
+    const editBtn = document.getElementById("notes-edit");
+    notesEditing = true;
+    editBtn.style.display = "none";
+    block.innerHTML = `
+      <textarea id="notes-input" class="admin-input admin-textarea" rows="12" style="max-width:720px"
+        placeholder="One line per paragraph.&#10;- Start a line with a dash for a bullet.&#10;Image: https://... on its own line shows a picture."></textarea>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button type="button" class="btn btn--primary" id="notes-save">Save</button>
+        <button type="button" class="btn btn--ghost" id="notes-cancel">Cancel</button>
+        <span class="section__note" id="notes-msg"></span>
+      </div>`;
+    const input = document.getElementById("notes-input");
+    const msg = document.getElementById("notes-msg");
+    input.value = notesToText(notesBlocks);
+    input.focus();
 
-  function graphicFor(sessionKey, rows) {
-    const g = SESSION_GRAPHIC[sessionKey];
-    const top = [...rows].sort((a, b) => Number(a.Position) - Number(b.Position))[0] || {};
-    const match = highlightsRes.rows.find(r =>
-      r.Category === g.cat && String(r.Round) === String(race.Round) && String(r.Season) === String(season));
-    const tc = Utils.teamColor(top.Team);
-    const src = Utils.resolveImageSrc(
-      `highlight:${season}:${race.Round}:${Utils.slugify(g.cat)}`,
-      match?.["Image URL"], top.Driver || g.cat,
-      { w: 400, h: 500, bg: tc + "22", fg: tc });
-    return `<figure class="ps-graphic">
-      <img src="${esc(src)}" alt="${esc(g.cat)}" />
-      <figcaption><span>${esc(g.cap)}</span> ${esc(top.Driver || "")}</figcaption>
-    </figure>`;
-  }
-
-  function tableFor(rows, { compact }) {
-    const sorted = [...rows].sort((a, b) => Number(a.Position) - Number(b.Position));
-    const showPts = sorted.some(r => r.Points !== undefined && r.Points !== "");
-    return `<table class="ps-table">
-      <thead><tr><th>Pos</th><th>Driver</th>${compact ? "" : "<th>Team</th>"}${showPts && !compact ? '<th class="r">Pts</th>' : ""}</tr></thead>
-      <tbody>${sorted.map(r => `<tr>
-        <td>${esc(r.Position || "–")}</td>
-        <td><i style="background:${Utils.teamColor(r.Team)}"></i>${esc(r.Driver || "—")}</td>
-        ${compact ? "" : `<td>${esc(r.Team || "—")}</td>`}
-        ${showPts && !compact ? `<td class="r">${esc(r.Points ?? "")}</td>` : ""}
-      </tr>`).join("")}</tbody>
-    </table>`;
-  }
-
-  function buildPrintSheet() {
-    const has = (k) => !!bySession[k]?.length;
-    const label = (k) => CONFIG.SESSION_ORDER.find(s => s.key === k)?.label || k;
-    const circuitMatch = circuitRows().find(c => c.Circuit === race.Circuit);
-    const mapSrc = Utils.resolveImageSrc(
-      `circuit:${Utils.slugify(race.Circuit)}:map`, circuitMatch?.["Circuit Map URL"],
-      race.Circuit || "Circuit", { w: 500, h: 310, bg: "none" });
-
-    let html = `
-      <header class="ps-head">
-        <div>
-          <div class="ps-kicker">ROUND ${String(race.Round).padStart(2, "0")} — ${esc(season)}</div>
-          <h1>${esc(race["Race Name"] || "Race")}</h1>
-          <p>${esc(race.Country || "")} · ${esc(race.Circuit || "")}<br>${esc(Utils.formatDateRange(race["Start Date"], race["End Date"]))}</p>
-        </div>
-        <figure class="ps-map"><img src="${esc(mapSrc)}" alt="Circuit map" /></figure>
-      </header>`;
-
-    // Posters — straight after the circuit: featured teams (3 across), then the rest (4 across)
-    const posterTile = (teamName) => {
-      const tc = Utils.teamColor(teamName);
-      const url = postersRes.rows.find(p => p.Team === teamName &&
-        String(p.Round) === String(race.Round) && String(p.Season) === String(season))?.["Poster URL"];
-      const src = Utils.resolveImageSrc(`poster:${season}:${race.Round}:${Utils.slugify(teamName)}`,
-        url, teamName, { w: 600, h: 800, bg: tc + "22", fg: tc });
-      return `<figure class="ps-poster"><img src="${esc(src)}" alt="${esc(teamName)} poster" /><figcaption>${esc(teamName)}</figcaption></figure>`;
-    };
-    const featured = CONFIG.TEAM_ORDER.filter(t => CONFIG.FEATURED_TEAMS.includes(t));
-    const rest = CONFIG.TEAM_ORDER.filter(t => !CONFIG.FEATURED_TEAMS.includes(t));
-    html += `<section class="ps-block ps-posters"><h2>Race Posters</h2>
-      <div class="ps-posters__row ps-posters__row--featured">${featured.map(posterTile).join("")}</div>
-      <div class="ps-posters__row ps-posters__row--rest">${rest.map(posterTile).join("")}</div>
-    </section>`;
-
-    // Free practice — 3 columns
-    const fps = ["FP1", "FP2", "FP3"].filter(has);
-    if (fps.length) {
-      html += `<section class="ps-block"><div class="ps-cols ps-cols--3">${fps.map(k => `
-        <div class="ps-col"><h2>${esc(label(k))}</h2>${graphicFor(k, bySession[k])}${tableFor(bySession[k], { compact: true })}</div>`).join("")}
-      </div></section>`;
-    }
-
-    // Sprint Quali, Sprint, Qualifying, Race — 2 columns (graphic left, results right)
-    ["Sprint Qualifying", "Sprint", "Qualifying", "Race"].filter(has).forEach(k => {
-      html += `<section class="ps-block"><h2>${esc(label(k))}</h2>
-        <div class="ps-cols ps-cols--2">
-          ${graphicFor(k, [...bySession[k]].sort((a, b) => Number(a.Position) - Number(b.Position)))}
-          ${tableFor(bySession[k], { compact: false })}
-        </div></section>`;
+    const close = () => { notesEditing = false; syncNotesUI(); };
+    document.getElementById("notes-cancel").addEventListener("click", close);
+    document.getElementById("notes-save").addEventListener("click", async () => {
+      msg.textContent = "Saving…";
+      try {
+        const json = await EditMode.post({
+          action: "saveNote", round: race.Round,
+          title: `Round ${race.Round} — ${race["Race Name"] || ""}`, text: input.value,
+        });
+        if (!json.ok) { msg.textContent = json.error || "Couldn't save."; return; }
+        notesBlocks = textToNotes(input.value);
+        close();
+      } catch (err) {
+        msg.textContent = "Network error — check the Apps Script URL and that it's deployed.";
+      }
     });
+  });
 
-    // Notes
-    if (notesBlocks.length) {
-      html += `<section class="ps-block ps-notes"><h2>Race Notes</h2>${notesBlocks.map(b =>
-        b.type === "img" ? `<img class="ps-note-img" src="${esc(b.url)}" alt="" />`
-        : b.type === "li" ? `<p class="ps-li">• ${esc(b.text)}</p>`
-        : `<p>${esc(b.text)}</p>`).join("")}</section>`;
-    }
-
-    document.getElementById("print-sheet").innerHTML = html;
-  }
-
-  function circuitRows() { return circuitsRes.rows; }
-
+  /* PDF export — layout lives in js/pdf-sheet.js (shared with the season PDF) */
   document.getElementById("export-pdf").addEventListener("click", async () => {
-    buildPrintSheet();
-    const prevTitle = document.title;
-    document.title = `${season} R${String(race.Round).padStart(2, "0")} ${race["Race Name"] || "Race"}`; // suggested file name
-    try { await document.fonts.load('16px "Special Elite"'); } catch {}
-    // wait for images in the sheet so they appear in the PDF
-    await Promise.all([...document.querySelectorAll("#print-sheet img")].map(img =>
-      img.complete ? null : new Promise(r => { img.onload = img.onerror = r; })));
-    window.print();
-    setTimeout(() => { document.title = prevTitle; }, 500);
+    document.getElementById("print-sheet").innerHTML = PdfSheet.raceHTML({
+      race, season, bySession, notesBlocks,
+      highlightRows: highlightsRes.rows, posterRows: postersRes.rows, circuitRows: circuitsRes.rows,
+    });
+    await PdfSheet.printSheet(`${season} R${String(race.Round).padStart(2, "0")} ${race["Race Name"] || "Race"}`);
   });
 })();

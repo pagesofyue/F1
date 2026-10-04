@@ -6,6 +6,9 @@
 
   if (!APPS_SCRIPT_URL) {
     document.getElementById("setup-needed").style.display = "block";
+    document.getElementById("setup-diag").textContent =
+      `What this page sees → config.js build: ${CONFIG.BUILD || "none (old config.js is live)"} · ` +
+      `APPS_SCRIPT_URL: ${String(APPS_SCRIPT_URL)}`;
     document.getElementById("gate").style.display = "none";
     return;
   }
@@ -276,6 +279,11 @@
     // Team / Team Name: pick from every team that's ever appeared.
     if (header === "Team" || header === "Team Name") {
       return buildSelect(header, value, ["", ...roster.teams], { allowCustom: true });
+    }
+
+    // Sprint Weekend: Yes/No on the Races tab (hides Sprint Quali + Sprint when "No").
+    if (header === "Sprint Weekend") {
+      return buildSelect(header, value, ["", "Yes", "No"]);
     }
 
     // Session: fixed, known list — keeps values consistent for the race page tabs.

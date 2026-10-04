@@ -8,8 +8,8 @@
    ========================================================================= */
 
 const PLACEHOLDER_RACES = [
-  { Season: 2026, Round: 1, "Race Name": "Australian Grand Prix", Country: "Australia", Circuit: "Albert Park Circuit", "Start Date": "2026-03-06", "End Date": "2026-03-08", Status: "Upcoming" },
-  { Season: 2026, Round: 2, "Race Name": "Chinese Grand Prix", Country: "China", Circuit: "Shanghai International Circuit", "Start Date": "2026-03-13", "End Date": "2026-03-15", Status: "Upcoming" },
+  { Season: 2026, Round: 1, "Race Name": "Australian Grand Prix", Country: "Australia", Circuit: "Albert Park Circuit", "Start Date": "2026-03-06", "End Date": "2026-03-08", Status: "Upcoming", "Sprint Weekend": "No" },
+  { Season: 2026, Round: 2, "Race Name": "Chinese Grand Prix", Country: "China", Circuit: "Shanghai International Circuit", "Start Date": "2026-03-13", "End Date": "2026-03-15", Status: "Upcoming", "Sprint Weekend": "Yes" },
   { Season: 2026, Round: 3, "Race Name": "Japanese Grand Prix", Country: "Japan", Circuit: "Suzuka International Racing Course", "Start Date": "2026-03-27", "End Date": "2026-03-29", Status: "Upcoming" },
   { Season: 2026, Round: 4, "Race Name": "Bahrain Grand Prix", Country: "Bahrain", Circuit: "Bahrain International Circuit", "Start Date": "2026-04-10", "End Date": "2026-04-12", Status: "Upcoming" },
   { Season: 2026, Round: 5, "Race Name": "Saudi Arabian Grand Prix", Country: "Saudi Arabia", Circuit: "Jeddah Corniche Circuit", "Start Date": "2026-04-17", "End Date": "2026-04-19", Status: "Upcoming" },

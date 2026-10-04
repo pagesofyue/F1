@@ -39,6 +39,7 @@ function setAdminPassword() {
 
 function doGet(e) {
   try {
+    if (e.parameter.tab === RACES_TAB) ensureColumn_(getSheet_(RACES_TAB), 'Sprint Weekend');
     if (e.parameter.doc === 'notes') return jsonOut_(readNotesDoc_());
     if (e.parameter.doc === 'links') return jsonOut_(docLinks_());
     const tabName = e.parameter.tab;
@@ -62,6 +63,9 @@ function doPost(e) {
     if (payload.password !== stored) {
       return jsonOut_({ ok: false, error: 'Incorrect password.' });
     }
+    if (payload.action === 'verify') return jsonOut_({ ok: true });
+    if (payload.action === 'saveResults') return jsonOut_(saveResults_(payload));
+    if (payload.action === 'saveNote') return jsonOut_(saveNote_(payload.round, payload.title, payload.text));
     if (!payload.tab) return jsonOut_({ ok: false, error: 'Missing "tab" in request.' });
 
     const sheet = getSheet_(payload.tab);
@@ -69,7 +73,8 @@ function doPost(e) {
     const touchesResults = payload.tab === RESULTS_TAB;
 
     if (payload.action === 'add') {
-      const row = headers.map(h => (payload.data && payload.data[h] !== undefined) ? payload.data[h] : '');
+      let row = headers.map(h => (payload.data && payload.data[h] !== undefined) ? payload.data[h] : '');
+      row = resolveRowImages_(headers, row);
       sheet.appendRow(row);
       if (touchesResults) refreshStandingsDoc_();
       return jsonOut_({ ok: true });
@@ -78,7 +83,8 @@ function doPost(e) {
     if (payload.action === 'update') {
       const rowNum = Number(payload.row);
       if (!rowNum || rowNum < 2) return jsonOut_({ ok: false, error: 'Invalid row number.' });
-      const row = headers.map(h => (payload.data && payload.data[h] !== undefined) ? payload.data[h] : '');
+      let row = headers.map(h => (payload.data && payload.data[h] !== undefined) ? payload.data[h] : '');
+      row = resolveRowImages_(headers, row);
       sheet.getRange(rowNum, 1, 1, headers.length).setValues([row]);
       if (touchesResults) refreshStandingsDoc_();
       return jsonOut_({ ok: true });
@@ -136,18 +142,134 @@ function setupDocs() {
   Logger.log('Standings doc:  ' + docLinks_().standingsUrl);
 }
 
-/** Optional, run once: also refresh the standings Doc when you type directly
- *  in the Results tab (edits made via admin.html refresh it automatically). */
-function installStandingsTrigger() {
+/** Run ONCE from the editor (accept the new permissions, incl. "connect to an external
+ *  service"). Installs one edit trigger that (a) refreshes the standings Doc when you type in
+ *  Results and (b) turns pasted page links (Pinterest, Imgur, Drive...) in any image column
+ *  into direct image links. */
+function installTriggers() {
   ScriptApp.getProjectTriggers().forEach(t => {
-    if (t.getHandlerFunction() === 'onResultsEdit') ScriptApp.deleteTrigger(t);
+    const f = t.getHandlerFunction();
+    if (f === 'onResultsEdit' || f === 'onSheetEdit') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('onResultsEdit')
-    .forSpreadsheet(SpreadsheetApp.getActive()).onEdit().create();
+  ScriptApp.newTrigger('onSheetEdit').forSpreadsheet(SpreadsheetApp.getActive()).onEdit().create();
+}
+function installStandingsTrigger() { installTriggers(); } // old name, same thing
+
+function onSheetEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    const sheet = e.range.getSheet();
+    if (sheet.getName() === RESULTS_TAB) { refreshStandingsDoc_(); return; }
+    convertImageLinksInRange_(sheet, e.range);
+  } catch (err) { console.error('onSheetEdit: ' + err); }
+}
+function onResultsEdit(e) { onSheetEdit(e); } // kept so an older installed trigger still works
+
+/** Adds a "Grid" menu to the sheet. */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('Grid')
+    .addItem('Convert all image links', 'convertAllImageLinks')
+    .addItem('Refresh standings Doc', 'refreshStandingsDoc_')
+    .addToUi();
 }
 
-function onResultsEdit(e) {
-  if (e && e.range && e.range.getSheet().getName() === RESULTS_TAB) refreshStandingsDoc_();
+/* ---------------- image links: paste a page link, get the real image ---------------- */
+
+/** Columns that hold images: header ends in "URL" or mentions image/photo. */
+function isImageHeader_(h) { return /url\s*$/i.test(String(h)) || /image|photo/i.test(String(h)); }
+
+function metaContent_(html, prop) {
+  const p = prop.replace(/[:.]/g, '\\$&');
+  const a = new RegExp('<meta[^>]+(?:property|name)=["\']' + p + '["\'][^>]*content=["\']([^"\']+)["\']', 'i').exec(html);
+  if (a) return a[1];
+  const b = new RegExp('<meta[^>]+content=["\']([^"\']+)["\'][^>]*(?:property|name)=["\']' + p + '["\']', 'i').exec(html);
+  return b ? b[1] : null;
+}
+
+/** Returns { url, error }. url is a direct image link (or the original if nothing to change). */
+function resolveImageUrl_(raw) {
+  const url = String(raw || '').trim();
+  if (!/^https?:\/\//i.test(url)) return { url: raw };
+
+  // Google Drive share link -> viewable image (the file must be shared "Anyone with the link")
+  let m = url.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || url.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
+  if (m) return { url: 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600' };
+
+  // already a direct image
+  if (/^https?:\/\/(i\.pinimg\.com|i\.imgur\.com|upload\.wikimedia\.org|lh3\.googleusercontent\.com|drive\.google\.com\/thumbnail)/i.test(url) ||
+      /\.(jpe?g|png|gif|webp|svg|avif)(\?.*)?$/i.test(url)) return { url: url };
+
+  // imgur page link
+  m = url.match(/^https?:\/\/(?:www\.)?imgur\.com\/(?:gallery\/)?([A-Za-z0-9]{5,8})\/?$/);
+  if (m) return { url: 'https://i.imgur.com/' + m[1] + '.jpg' };
+
+  // anything else (Pinterest pins, pin.it short links, articles...): read the page's main image
+  let res;
+  try {
+    res = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true, followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                 'Accept-Language': 'en-US,en;q=0.9' },
+    });
+  } catch (err) { return { url: raw, error: 'Could not open that link.' }; }
+
+  if (String(res.getHeaders()['Content-Type'] || '').toLowerCase().indexOf('image/') === 0) return { url: url };
+  const html = res.getContentText();
+  let found = metaContent_(html, 'og:image:secure_url') || metaContent_(html, 'og:image') ||
+              metaContent_(html, 'twitter:image') || metaContent_(html, 'twitter:image:src');
+  if (!found) return { url: raw, error: 'No image found at that link. Right-click the image > Copy image address and paste that instead.' };
+
+  found = found.replace(/&amp;/g, '&').replace(/&#x27;|&#39;/g, "'");
+  if (/pinimg\.com\/\d+x\//.test(found)) { // Pinterest: prefer the full-size original if it exists
+    const big = found.replace(/pinimg\.com\/\d+x\//, 'pinimg.com/originals/');
+    try { if (UrlFetchApp.fetch(big, { method: 'head', muteHttpExceptions: true }).getResponseCode() === 200) found = big; } catch (err) {}
+  }
+  return { url: found };
+}
+
+function convertImageLinksInRange_(sheet, range) {
+  if (range.getRow() === 1 || range.getNumRows() * range.getNumColumns() > 40) return;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  for (let r = 0; r < range.getNumRows(); r++) {
+    for (let c = 0; c < range.getNumColumns(); c++) {
+      const col = range.getColumn() + c;
+      if (!isImageHeader_(headers[col - 1])) continue;
+      const cell = sheet.getRange(range.getRow() + r, col);
+      const v = cell.getValue();
+      if (typeof v !== 'string' || !/^https?:\/\//i.test(v.trim())) continue;
+      const out = resolveImageUrl_(v);
+      if (out.error) cell.setNote(out.error);
+      else if (out.url && out.url !== v.trim()) { cell.setValue(out.url); cell.setNote('Converted from: ' + v.trim()); }
+    }
+  }
+}
+
+/** Run from the Grid menu: converts every page link already in your image columns. */
+function convertAllImageLinks() {
+  SpreadsheetApp.getActive().getSheets().forEach(sheet => {
+    const last = sheet.getLastRow();
+    if (last < 2) return;
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    headers.forEach((h, i) => {
+      if (!isImageHeader_(h)) return;
+      for (let row = 2; row <= last; row++) {
+        const cell = sheet.getRange(row, i + 1), v = cell.getValue();
+        if (typeof v !== 'string' || !/^https?:\/\//i.test(v.trim())) continue;
+        const out = resolveImageUrl_(v);
+        if (out.error) cell.setNote(out.error);
+        else if (out.url && out.url !== v.trim()) { cell.setValue(out.url); cell.setNote('Converted from: ' + v.trim()); }
+      }
+    });
+  });
+}
+
+/** Converts image-column values in a row written by the admin panel. */
+function resolveRowImages_(headers, row) {
+  return row.map((v, i) => {
+    if (!isImageHeader_(headers[i]) || typeof v !== 'string') return v;
+    const out = resolveImageUrl_(v);
+    return out.url || v;
+  });
 }
 
 function docLinks_() {
@@ -192,6 +314,102 @@ function readNotesDoc_() {
     else current.blocks.push({ type: isItem ? 'li' : 'p', text: text });
   }
   return { ok: true, url: doc.getUrl(), notes: notes };
+}
+
+/** Adds a header cell if the tab doesn't have that column yet (blank values). */
+function ensureColumn_(sheet, name) {
+  const headers = getHeaders_(sheet);
+  if (headers.length && headers.indexOf(name) === -1) {
+    sheet.getRange(1, headers.length + 1).setValue(name);
+  }
+}
+
+/** Replaces every Results row for one Season + Round + Session with the rows
+ *  sent from the race page, then refreshes the standings Doc. */
+function saveResults_(payload) {
+  const season = String(payload.season || '').trim();
+  const round = String(payload.round || '').trim();
+  const session = String(payload.session || '').trim();
+  if (!season || !round || !session) return { ok: false, error: 'Missing season, round or session.' };
+  const incoming = Array.isArray(payload.rows) ? payload.rows : [];
+  if (incoming.length > 60) return { ok: false, error: 'Too many rows.' };
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = getSheet_(RESULTS_TAB);
+    const headers = getHeaders_(sheet);
+    const iS = headers.indexOf('Season'), iR = headers.indexOf('Round'), iX = headers.indexOf('Session');
+    if (iS < 0 || iR < 0 || iX < 0) return { ok: false, error: 'Results tab needs Season, Round and Session columns.' };
+
+    const lastRow = sheet.getLastRow();
+    const existing = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, headers.length).getValues() : [];
+    const kept = existing.filter(r => !(
+      String(r[iS]).trim() === season && String(r[iR]).trim() === round && String(r[iX]).trim() === session));
+
+    const fresh = incoming.map(obj => headers.map(h => {
+      if (h === 'Season') return Number(season) || season;
+      if (h === 'Round') return Number(round) || round;
+      if (h === 'Session') return session;
+      const v = obj[h];
+      return v === undefined || v === null ? '' : v;
+    }));
+
+    const all = kept.concat(fresh);
+    if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, headers.length).clearContent();
+    if (all.length) sheet.getRange(2, 1, all.length, headers.length).setValues(all);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  refreshStandingsDoc_();
+  return { ok: true };
+}
+
+/** Replaces everything under the "Round N" Heading 1 with the given text
+ *  (one line = one paragraph, "- " = bullet, "Image: url" = picture).
+ *  Creates the heading at the end of the Doc if that round has none yet. */
+function saveNote_(round, title, text) {
+  const id = PropertiesService.getScriptProperties().getProperty(NOTES_DOC_PROPERTY);
+  if (!id) return { ok: false, error: 'No notes Doc yet — run setupDocs() in the Apps Script editor.' };
+  round = Number(round);
+  if (!round) return { ok: false, error: 'Missing round.' };
+
+  const doc = DocumentApp.openById(id);
+  const body = doc.getBody();
+  let start = -1, end = body.getNumChildren();
+
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    const el = body.getChild(i);
+    if (el.getType() !== DocumentApp.ElementType.PARAGRAPH) continue;
+    const para = el.asParagraph();
+    if (para.getHeading() !== DocumentApp.ParagraphHeading.HEADING1) continue;
+    if (start >= 0) { end = i; break; }
+    const m = para.getText().match(/round\s*(\d+)/i);
+    if (m && Number(m[1]) === round) start = i;
+  }
+  if (start < 0) {
+    body.appendParagraph(title || ('Round ' + round)).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    start = body.getNumChildren() - 1;
+    end = start + 1;
+  }
+
+  const lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let idx = start + 1;
+  lines.forEach(l => {
+    const m = l.match(/^[-•*]\s+(.*)$/);
+    if (m) body.insertListItem(idx++, m[1]).setGlyphType(DocumentApp.GlyphType.BULLET);
+    else body.insertParagraph(idx++, l).setHeading(DocumentApp.ParagraphHeading.NORMAL);
+  });
+
+  // remove the old content (shifted down by the lines just inserted)
+  for (let i = end - 1 + lines.length; i >= start + 1 + lines.length; i--) {
+    const el = body.getChild(i);
+    try { body.removeChild(el); }
+    catch (err) { if (el.getType() === DocumentApp.ElementType.PARAGRAPH) el.asParagraph().clear(); }
+  }
+  doc.saveAndClose();
+  return { ok: true };
 }
 
 /** Recomputes the standings from the Results tab and rewrites the standings Doc. */

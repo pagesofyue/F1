@@ -450,9 +450,11 @@ button { font-family: inherit; cursor: pointer; }
   aspect-ratio: 16 / 10;
   border-radius: var(--radius);
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 0;
+  background: transparent;
 }
-.circuit-map .img-slot img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+/* transparent always; multiply also knocks out a white JPG/PNG background on this light page */
+.circuit-map .img-slot img { width: 100%; height: 100%; object-fit: contain; background: transparent; mix-blend-mode: multiply; }
 .circuit-map__label {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -888,4 +890,31 @@ button { font-family: inherit; cursor: pointer; }
   .ps-poster img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; border: 1px solid #151515; }
   .ps-poster figcaption { position: absolute; left: 1.5mm; bottom: 1.5mm; background: rgba(17,18,20,.78);
                           color: #F5F4F1; font-size: 7pt; padding: .5mm 1.5mm; }
+
+  /* Season PDF: cover + clickable table of contents, one race per page group */
+  @page { @bottom-right { content: counter(page); font-family: "Special Elite", monospace; font-size: 8pt; } }
+  .ps-cover { break-after: page; page-break-after: always; }
+  .ps-cover h1 { font-size: 36pt; margin: 4mm 0 3mm; }
+  .ps-toc { list-style: none; padding: 0; margin: 12mm 0 0; }
+  .ps-toc a { display: flex; align-items: baseline; gap: 2mm; color: inherit; text-decoration: none; padding: 1.3mm 0; font-size: 11pt; }
+  .ps-toc a i { flex: 1; border-bottom: 1px dotted #777; transform: translateY(-1mm); }
+  .ps-toc a em { font-style: normal; font-size: 8.5pt; color: #555; }
+  .ps-race { break-before: page; page-break-before: always; }
 }
+
+/* =========================================================================
+   EDIT MODE (password unlock, inline results editor)
+   ========================================================================= */
+.em-toggle.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.em-modal { position: fixed; inset: 0; background: rgba(17,18,20,.45); display: flex;
+            align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.em-modal__box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+                 padding: 22px; width: min(380px, 100%); }
+.em-modal__box h3 { margin: 0 0 12px; }
+.em-table { border-collapse: collapse; width: 100%; min-width: 640px; }
+.em-table th { text-align: left; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint);
+               font-weight: 400; padding: 0 6px 6px; }
+.em-table td { padding: 3px 4px; }
+.em-table .em-pos, .em-table .em-no, .em-table .em-pts { width: 70px; }
+.em-actions { display: flex; gap: 10px; align-items: center; margin: 14px 0 8px; flex-wrap: wrap; }
+@media print { .em-modal, .em-toggle { display: none !important; } }

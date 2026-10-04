@@ -18,6 +18,8 @@
    ========================================================================= */
 
 const CONFIG = {
+  // Shown in the page footer — lets you confirm which version of the files is live.
+  BUILD: "2026-10-04-r4",
   SEASON: 2026,
 
   SHEET_URLS: {
@@ -91,7 +93,7 @@ const CONFIG = {
   ADMIN: {
     // Paste the Web app URL you get after deploying apps-script/Code.gs.
     // Leave null and admin.html will show setup instructions instead.
-    APPS_SCRIPT_URL: null,
+    APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwRBaU3bIHnHT753CBzsWFAUzdg5G6sjLPaDVrn_4LCUhZwJYLGQjQTWzEdoyWgnl9V/exec",
 
     // Map each logical tab to the EXACT sheet/tab name in your spreadsheet
     // (case-sensitive). Change the right-hand side if your tab is named

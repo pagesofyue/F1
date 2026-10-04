@@ -18,6 +18,17 @@ const Utils = (() => {
   /* Loads a tab's data, falling back to placeholder rows if no URL is set
      in CONFIG, or if the fetch fails for any reason. */
   async function loadTab(tabKey, placeholderRows) {
+    // Results are read live from the Apps Script when it's connected, so edits made
+    // on the race page show up immediately (the published CSV can lag by minutes).
+    const live = CONFIG.ADMIN && CONFIG.ADMIN.APPS_SCRIPT_URL;
+    if (tabKey === "results" && live) {
+      try {
+        const name = CONFIG.ADMIN.SHEET_NAMES.results;
+        const res = await fetch(`${live}?tab=${encodeURIComponent(name)}`, { cache: "no-store" });
+        const json = await res.json();
+        if (json.ok && json.rows.length) return { rows: json.rows, isPlaceholder: false };
+      } catch (err) { console.warn("Live results unavailable, using the CSV.", err); }
+    }
     const url = CONFIG.SHEET_URLS[tabKey];
     if (!url) return { rows: placeholderRows, isPlaceholder: true };
     try {
@@ -44,6 +55,17 @@ const Utils = (() => {
       return null;
     }
   }
+
+  /* Sprint weekend? Uses the "Sprint Weekend" column in the Races tab (Yes/No).
+     Blank or missing column -> infer from whether any sprint results exist. */
+  function isSprintWeekend(race, sessionKeysWithData) {
+    const v = String(race["Sprint Weekend"] ?? "").trim().toLowerCase();
+    if (["yes", "y", "true", "1", "sprint"].includes(v)) return true;
+    if (["no", "n", "false", "0"].includes(v)) return false;
+    return (sessionKeysWithData || []).some(k => k === "Sprint" || k === "Sprint Qualifying");
+  }
+  const SPRINT_SESSIONS = ["Sprint Qualifying", "Sprint"];
+  const SPRINT_CATEGORIES = ["Sprint Qualifying", "Sprint Race"];
 
   /* ---------- text helpers ---------- */
 
@@ -128,11 +150,24 @@ const Utils = (() => {
     try { localStorage.removeItem(LS_PREFIX + key); } catch {}
   }
 
+  /* Turns common "share" links into direct image links (Drive, Dropbox, Imgur pages).
+     Pinterest/other page links can't be read from the browser — the Apps Script converts
+     those when you paste them into the sheet. */
+  function normalizeImageUrl(u) {
+    u = String(u || "").trim();
+    let m = u.match(/drive\.google\.com\/file\/d\/([\w-]+)/) || u.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/);
+    if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1600`;
+    if (/^https?:\/\/(www\.)?dropbox\.com\//i.test(u)) return u.replace(/[?&]dl=0/, "").replace(/(\?|$)/, (x) => (x === "?" ? "?raw=1&" : "?raw=1"));
+    m = u.match(/^https?:\/\/(?:www\.)?imgur\.com\/(?:gallery\/)?([A-Za-z0-9]{5,8})\/?$/);
+    if (m) return `https://i.imgur.com/${m[1]}.jpg`;
+    return u;
+  }
+
   /* Resolves the final image src for a slot: local override > sheet URL > placeholder */
   function resolveImageSrc(key, sheetUrl, placeholderLabel, placeholderOpts) {
     const override = getOverride(key);
     if (override) return override;
-    if (sheetUrl && sheetUrl.trim()) return sheetUrl.trim();
+    if (sheetUrl && sheetUrl.trim()) return normalizeImageUrl(sheetUrl);
     return placeholderImage(placeholderLabel, placeholderOpts);
   }
 
@@ -198,8 +233,13 @@ const Utils = (() => {
     return figure;
   }
 
+  document.addEventListener("DOMContentLoaded", () => {
+    const foot = document.querySelector(".site-footer .wrap");
+    if (foot && CONFIG.BUILD) foot.insertAdjacentHTML("beforeend", ` <span style="opacity:.55">· build ${CONFIG.BUILD}</span>`);
+  });
+
   return {
-    fetchCSV, loadTab, fetchDoc, slugify, initials, formatDateRange, teamColor, groupBy,
+    fetchCSV, loadTab, fetchDoc, isSprintWeekend, SPRINT_SESSIONS, SPRINT_CATEGORIES, slugify, initials, formatDateRange, teamColor, groupBy,
     placeholderImage, getOverride, setOverride, clearOverride,
     resolveImageSrc, attachUploader, buildImageSlot,
   };
